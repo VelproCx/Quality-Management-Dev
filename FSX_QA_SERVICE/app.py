@@ -1,23 +1,26 @@
-from flask import Flask, render_template, request, redirect, jsonify
-from common import Mysql_configs
-import cryptography
+from flask import Flask, render_template, request, redirect
+from dbutils.pooled_db import PooledDB
 import pymysql
-
+from common import Mysql_configs
+from flask_sqlalchemy import SQLAlchemy
 
 
 app = Flask(__name__, template_folder='/Users/zhenghuaimao/Desktop/FSX-DEV-QA/templates')
-
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 
 # 创建数据库连接池
-db_config = {
-    "host": Mysql_configs.MYSQL_HOST,
-    "port": Mysql_configs.MYSQL_PORT,
-    "user": Mysql_configs.MYSQL_USER,
-    "password": Mysql_configs.MYSQL_PASSWORD,
-    "database": Mysql_configs.MYSQL_DATABASE,
-    "charset": 'utf8mb4'
-}
-
+pool = PooledDB(
+    creator=pymysql,
+    maxconnections=10,  # 最大连接数
+    mincached=2,        # 初始化时的最小空闲连接数
+    maxcached=5,        # 最大空闲连接数
+    host=Mysql_configs.MYSQL_HOST,
+    post=Mysql_configs.MYSQL_PORT,
+    user=Mysql_configs.MYSQL_USER,
+    password=Mysql_configs.MYSQL_PASSWORD,
+    database=Mysql_configs.MYSQL_DATABASE,
+    charset='utf8mb4'
+)
 
 # 设计主页路由
 @app.route('/')
@@ -26,39 +29,31 @@ def index():
 
 
 # 设计登录路由
-@app.route('/login', methods=['POST', 'GET'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         # 处理登录逻辑
         username = request.form['username']
         password = request.form['password']
         # 从连接池创建连接对象
-        conn = pymysql.connect(**db_config)
-        cursor = conn.cursor()
+        connection = pool.connection()
 
         try:
-            # 执行查询用户的SQL语句
-            query = "SELECT * FROM users WHERE username = %s AND password = %s"
-            cursor.execute(query, (username, password))
+            with connection.cursor() as cursor:
+                # 查询数据库中的用户信息
+                sql = "SELECT * FROM `users` WHERE `username`=%s AND `password`=%s"
 
-            # 获取查询结果
-            result = cursor.fetchone()
+                cursor.execte(sql, (username,password))
+                result = cursor.fetchone()
 
-            if result:
-                # 登录成功
-                return jsonify({'message': '登录成功'})
-            else:
-                # 登录失败
-                return jsonify({'message': '用户名或密码错误'})
-
-        except Exception as e:
-            # 处理异常
-            return jsonify({'message': '登录失败', 'error': str(e)})
-
+                if result:
+                    # 验证成功，重定向到管理后台
+                    return redirect('/admin')
+                else:
+                    # 验证失败，返回登录页面
+                    return render_template('login.heml')
         finally:
-            # 关闭游标和连接
-            cursor.close()
-            conn.close()
+            connection.close()
 
         # 验证成功，重定向到管理后台
         return redirect('/admin')
