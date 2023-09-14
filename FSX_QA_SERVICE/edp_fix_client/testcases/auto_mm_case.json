@@ -1,0 +1,122 @@
+{
+  "testCase": [
+    {
+      "Symbol": "1925",
+      "OrderQty": 100000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "1928",
+      "OrderQty": 100000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "2502",
+      "OrderQty": 100000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "2503",
+      "OrderQty": 100000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "2802",
+      "OrderQty": 200,
+      "Side":"1"
+    },
+    {
+      "Symbol": "2914",
+      "OrderQty": 300,
+      "Side":"1"
+    },
+    {
+      "Symbol": "3402",
+      "OrderQty": 200,
+      "Side":"2"
+    },
+    {
+      "Symbol": "3407",
+      "OrderQty": 300,
+      "Side":"2"
+    },
+    {
+      "Symbol": "4502",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "4503",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "4568",
+      "OrderQty": 1000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "4578",
+      "OrderQty": 1000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "8001",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8001",
+      "OrderQty": 1000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "8002",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8002",
+      "OrderQty": 1000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "8031",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8031",
+      "OrderQty": 1000,
+      "Side":"2"
+    },
+    {
+      "Symbol": "8035",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8035",
+      "OrderQty": 1000,
+      "Side":"2"
+    }, {
+      "Symbol": "8053",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8053",
+      "OrderQty": 1000,
+      "Side":"2"
+    }, {
+      "Symbol": "8058",
+      "OrderQty": 1000,
+      "Side":"1"
+    },
+    {
+      "Symbol": "8058",
+      "OrderQty": 1000,
+      "Side":"2"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "testCase": [
+    {
+      "Id": "1",
+      "ScenarioName": "New Order",
+      "Market": "ROL",
+      "ActionType": "NewAck",
+      "Comment": "ROL_Market_NewAck",
+      "OrderQty": 1,
+      "OrdType": "1",
+      "Side": "1",
+      "Symbol": "5110",
+      "TimeInForce": "0",
+      "CrossingPriceType": "ROL",
+      "Rule80A": "P",
+      "CashMargin": "1",
+      "MarginTransactionType": "0"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "testCase": [
+       {
+      "Id": "52",
+      "ScenarioName": "Quantity Check(Lot size=100,Quantity=99)",
+      "Account": "RSIT_EDP_ACCOUNT_2",
+      "Market": "EDP",
+      "ActionType": "NewAck",
+      "Comment": "Lot size=100,Quantity=99",
+      "OrderQty": 99,
+      "OrdType": "1",
+      "Side": "2",
+      "Symbol": "1325",
+      "TimeInForce": "3",
+      "CrossingPriceType": "EDP",
+      "Rule80A": "P",
+      "CashMargin": "1",
+      "MarginTransactionType": "0",
+      "MinQty": 0,
+      "OrderClassification": "3",
+      "SelfTradePreventionId": "0",
+      "ordstatus": [
+        "8"
+      ],
+      "errorCode": "ERROR_10010018,Invalid quantity or lot_size"
+    },
+    {
+      "Id": "2",
+      "ScenarioName": "Regular Order Flow-A(New Order->EDP Fill Indicate->EDP ToSTNeT Confirmation)",
+      "Account": "RSIT_EDP_ACCOUNT_2",
+      "Market": "EDP",
+      "ActionType": "NewAck",
+      "Comment": "EDP_Market_NewAck_Buy",
+      "OrderQty": 100,
+      "OrdType": "1",
+      "Side": "2",
+      "Symbol": "7186",
+      "TimeInForce": "3",
+      "CrossingPriceType": "EDP",
+      "Rule80A": "P",
+      "CashMargin": "1",
+      "MarginTransactionType": "0",
+      "MinQty": 0,
+      "OrderClassification": "3",
+      "SelfTradePreventionId": "0",
+      "ordstatus": [
+        "0",
+        "2",
+        "2"
+      ]
+    }
+  ]
+}
