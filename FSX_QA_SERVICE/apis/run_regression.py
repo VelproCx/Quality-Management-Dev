@@ -1,6 +1,5 @@
 import json
 import os
-
 from flask import Flask, send_file, Response
 import subprocess
 import time
