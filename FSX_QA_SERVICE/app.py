@@ -1,13 +1,16 @@
 # -*- coding:utf-8 -*-
 from flask import Flask
+from apis.Application import app_application
 from apis.user import app_user
 from flask_cors import CORS
-from FSX_QA_SERVICE.common import Mysql_configs
-from flask import make_response, render_template
+from flask import render_template
 
+# 调试使用，正式部署请将template_folder="/Users/zhenghuaimao/Desktop/FSX-DEV-QA/templates"去掉
 app = Flask(__name__, template_folder="/Users/zhenghuaimao/Desktop/FSX-DEV-QA/templates")
+# 允许跨域请求
 CORS(app, supports_credentials=True)
 
+app.register_blueprint(app_application)
 app.register_blueprint(app_user)
 
 @app.route('/')
