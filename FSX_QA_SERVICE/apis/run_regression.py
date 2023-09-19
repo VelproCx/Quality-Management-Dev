@@ -6,6 +6,32 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from flask_cors import CORS
+import mysql.connector
+from mysql.connector import Error
+from mysql.connector import pooling
+from configparser import ConfigParser
+
+# 读取INI配置文件
+config = ConfigParser()
+config.read('../config/settings.ini')
+
+# 从配置文件中获取数据库连接信息
+hostname = config.get('MySQL', 'MYSQL_HOST')
+port = config.get('MySQL', 'MYSQL_PORT')
+username = config.get('MySQL', 'MYSQL_USER')
+password = config.get('MySQL', 'MYSQL_PASSWORD')
+database = config.get('MySQL', 'MYSQL_DATABASE')
+
+# 创建数据库连接池
+pool = pooling.MySQLConnectionPool(
+    pool_name="my_pool",
+    pool_size=5,
+    host=hostname,
+    port=port,
+    user=username,
+    password=password,
+    database=database
+)
 
 
 # 使用 str() 函数将 timedelta 对象转换为可序列化的形式
@@ -19,6 +45,8 @@ class CustomJSONEncoder(json.JSONEncoder):
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
 # app.json_encoder = CustomJSONEncoder
+
+config = ConfigParser()
 
 
 # 运行 regression
@@ -46,11 +74,32 @@ def run_regression():
     execution_time = end_time - start_time  # 计算执行时间
 
     response = {
-        'success': success,
+        'status': success,
         'output': output,
+        'start_time': start_time.strftime("%Y-%m-%d %H:%M:%S"),
         'execution_time': str(execution_time),
-        'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S")
+        'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        'type': 1
     }
+    conn = pool.get_connection()
+    cursor = conn.cursor()
+
+    # 构建插入SQL语句
+    sql = "INSERT INTO regression (status, title, start_date, end_date, type) VALUES (%s, %s, %s, %s, %s)"
+    values = (response['status'], "test", response['start_time'], end_time, int(response['type']))
+    try:
+        # 执行插入操作
+        cursor.execute(sql, values)
+        conn.commit()
+
+    except Exception as e:
+        print("Error while inserting into the database:", e)
+
+    finally:
+        # 关闭游标和连接
+        cursor.close()
+        conn.close()
+
     json_response = json.dumps(response)
     return Response(json_response, mimetype='application/json')
 
@@ -71,6 +120,7 @@ def download_report_file():
     return send_file(file_path, as_attachment=True)
 
 
+# 预览edp_report.log
 @app.route('/api/preview_edp_log')
 def preview_edp_logs():
     log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
@@ -78,6 +128,7 @@ def preview_edp_logs():
     return send_file(log_file_path)
 
 
+# 预览edp_report.xlsx
 @app.route('/api/preview_edp_report')
 def preview_edp_report():
     xlsx_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
