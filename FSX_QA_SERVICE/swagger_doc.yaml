@@ -1,0 +1,100 @@
+swagger: "2.0"
+info:
+  title: EDP Regression API
+  description: API for running EDP regression
+  version: "1.0"
+paths:
+  /api/run_edp_regression:
+    post:
+      tags:
+        - EDP Regression
+      summary: Run EDP Regression Test
+      description: Runs the EDP regression test.
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters: [ ]
+      responses:
+        '200':
+          description: EDP regression test executed successfully.
+          schema:
+            type: object
+            properties:
+              result:
+                type: string
+              output:
+                type: string
+              start_time:
+                type: string
+                format: date-time
+              execution_time:
+                type: string
+              end_time:
+                type: string
+                format: date-time
+              type:
+                type: integer
+  /api/download_edp_logs:
+    get:
+      tags:
+        - EDP Regression
+      summary: Download EDP Logs
+      description: Downloads the EDP log file.
+      responses:
+        '200':
+          description: EDP log file downloaded successfully
+  /api/download_edp_reports:
+    get:
+      tags:
+        - EDP Regression
+      summary: Download EDP Reports
+      description: Downloads the EDP report file.
+      responses:
+        '200':
+          description: EDP report file downloaded successfully
+  /api/preview_edp_log:
+    get:
+      tags:
+        - EDP Regression
+      summary: Preview EDP Log
+      description: Previews the EDP log file.
+      responses:
+        '200':
+          description: EDP log previewed successfully
+  /api/preview_edp_report:
+    get:
+      tags:
+        - EDP Regression
+      summary: Preview EDP Report
+      description: Previews the EDP report file.
+      responses:
+        '200':
+          description: EDP report previewed successfully
+  /api/update_edp_config:
+    post:
+      tags:
+        - EDP Regression
+      summary: Update EDP Config
+      description: Updates the EDP config.
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - name: section
+          in: formData
+          type: string
+          required: true
+          description: The section to update in the EDP config.
+        - name: key
+          in: formData
+          type: string
+          required: true
+          description: The key to update in the EDP config.
+        - name: value
+          in: formData
+          type: string
+          required: true
+          description: The value to update in the EDP config.
+      responses:
+        '200':
+          description: EDP config updated successfully.
