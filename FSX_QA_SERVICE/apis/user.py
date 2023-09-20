@@ -82,7 +82,7 @@ def create_user():
             create_user_sql = "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)"
             cursor.execute(create_user_sql, (username, email, password))
             connection.commit()
-            return jsonify({'message': 'create user succeed'})
+            return jsonify({'message': 'Create user succeed'})
     except pymysql.Error as e:
         return jsonify({'message': 'Create user fail', 'error': str(e)}), 500
 
@@ -91,5 +91,35 @@ def create_user():
         cursor.close()
         connection.close()
 
-# @app_user.route("/api/user/delete", methods=['DEL'])
-# def delete_user
+@app_user.route("/api/user/delete", methods=['DELETE'])
+def delete_user():
+    data = request.get_data()
+    js_data = json.loads(data)
+    username = js_data['username']
+
+    # 从数据库池获取数据库连接
+    connection = global_connection_pool.connection()
+
+    # 创建游标
+    cursor = connection.cursor()
+
+    # 执行SQL
+    sql = "SELECT * FROM users WHERE username = %s "
+    cursor.execute(sql, username)
+
+    # 获取查询结果
+    result = cursor.fetchone()
+    try:
+        if result:
+            delete_user_sql = "DELETE FROM users WHERE username = %s"
+            cursor.execute(delete_user_sql, username)
+            connection.commit()
+            return jsonify({'message': 'Delete user succeed'})
+        else:
+            return jsonify({'message': 'User does not exist'})
+    except pymysql.Error as e:
+        return jsonify({'message': 'Delete user fail', 'error': str(e)})
+
+    finally:
+        cursor.close()
+        connection.close()
