@@ -2,6 +2,7 @@
 from flask import Flask
 from apis.Application import app_application
 from apis.user import app_user
+from apis.run_edp_performance import app_run_enp_performance
 from flask_cors import CORS
 from flask import render_template
 
@@ -12,6 +13,7 @@ CORS(app, supports_credentials=True)
 
 app.register_blueprint(app_application)
 app.register_blueprint(app_user)
+app.register_blueprint(app_run_enp_performance)
 
 @app.route('/')
 def index():
