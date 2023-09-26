@@ -14,7 +14,17 @@ paths:
         - application/json
       produces:
         - application/json
-      parameters: [ ]
+      parameters:
+        - name: "title"
+          in: "formData"
+          description: "Title of the regression"
+          required: true
+          type: "string"
+        - name: "creator"
+          in: "formData"
+          description: "Creator of the regression"
+          required: true
+          type: "string"
       responses:
         '200':
           description: EDP regression test executed successfully.
@@ -98,3 +108,33 @@ paths:
       responses:
         '200':
           description: EDP config updated successfully.
+  /edp_regression_list:
+    get:
+      tags:
+        - "EDP Regression"
+      summary: "Get EDP regression list"
+      responses:
+        200:
+          description: "OK"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  type: "object"
+                  properties:
+                    title:
+                      type: "string"
+                    status:
+                      type: "string"
+                    createUser:
+                      type: "string"
+                    execution_time:
+                      type: "string"
+                    start_date:
+                      type: "string"
+                      format: "date-time"
+                    end_date:
+                      type: "string"
+                      format: "date-time"

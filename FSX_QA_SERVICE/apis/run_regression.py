@@ -2,36 +2,17 @@ import json
 import os
 from flask import Flask, send_file, Response, jsonify, request
 import subprocess
-import time
 from datetime import datetime, timedelta
 from flask_cors import CORS
-from mysql.connector import pooling
 from configparser import ConfigParser
 from flasgger import Swagger, swag_from
-from configobj import ConfigObj
+from FSX_QA_SERVICE.apis.Application import global_connection_pool
+import pymysql
 
 # 读取INI配置文件
 config = ConfigParser()
 config.read('../config/settings.ini')
 config_file = '../edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg'
-
-# 从配置文件中获取数据库连接信息
-hostname = config.get('MySQL', 'MYSQL_HOST')
-port = config.get('MySQL', 'MYSQL_PORT')
-username = config.get('MySQL', 'MYSQL_USER')
-password = config.get('MySQL', 'MYSQL_PASSWORD')
-database = config.get('MySQL', 'MYSQL_DATABASE')
-
-# 创建数据库连接池
-pool = pooling.MySQLConnectionPool(
-    pool_name="my_pool",
-    pool_size=5,
-    host=hostname,
-    port=port,
-    user=username,
-    password=password,
-    database=database
-)
 
 
 # 使用 str() 函数将 timedelta 对象转换为可序列化的形式
@@ -54,6 +35,9 @@ config = ConfigParser()
 @app.route('/api/run_edp_regression', methods=['POST'])
 @swag_from('../swagger_doc.yaml')
 def run_regression():
+    title = request.form.get('title')  # 获取title
+    creator = request.form.get('creator')  # 获取创建人
+
     # 定义文件路径和文件名
     file_path = '../edp_fix_client/initiator/edp_regression_test/edp_regression_application.py'
 
@@ -72,35 +56,41 @@ def run_regression():
         output = "Execution time out"
         result = "Fail"
 
+    except KeyboardInterrupt:
+        output = "Execution interrupted"
+        result = "Fail"
+
     end_time = datetime.now()  # 记录结束时间
     execution_time = end_time - start_time  # 计算执行时间
 
     response = {
-        'result': result,
+        'creator': creator,
+        'status': result,
         'output': output,
         'start_time': start_time.strftime("%Y-%m-%d %H:%M:%S"),
         'execution_time': str(execution_time),
         'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
         'type': 1
     }
-    conn = pool.get_connection()
-    cursor = conn.cursor()
+    # 从数据库池获取数据库连接
+    connection = global_connection_pool.connection()
+    # 创建游标
+    cursor = connection.cursor()
 
     # 构建插入SQL语句
-    sql = "INSERT INTO regression (status, title, start_date, end_date, type) VALUES (%s, %s, %s, %s, %s)"
-    values = (response['result'], "test", response['start_time'], end_time, int(response['type']))
+    sql = "INSERT INTO regression (status, title, start_date, end_date, type, createUser) VALUES (%s, %s, %s, %s, %s, %s)"
+    values = (response['status'], title, response['start_time'], end_time, int(response['type']), creator)
     try:
         # 执行插入操作
         cursor.execute(sql, values)
-        conn.commit()
-
+        connection.commit()
     except Exception as e:
         print("Error while inserting into the database:", e)
 
     finally:
         # 关闭游标和连接
         cursor.close()
-        conn.close()
+        connection.close()
 
     json_response = json.dumps(response)
     return Response(json_response, mimetype='application/json'), 200
@@ -205,6 +195,45 @@ def update_edp_config():
     update_config(section, key, value)
 
     return jsonify({'message': f'Section "{section}", Key "{key}" updated successfully'}), 200
+
+
+# 获取edp_regression运行历史列表
+@app.route('/api/edp_regression_list', methods=['GET'])
+@swag_from('../swagger_doc.yaml')
+def edp_regression_list():
+    try:
+        connection = global_connection_pool.connection()
+        cursor = connection.cursor()
+
+        sql = "SELECT title, status, createUser, execution_time, start_date, end_date FROM qa_admin.regression where type = 1;"
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+
+        # 构建响应数据
+        data = []
+        for row in rows:
+            data.append(
+                {
+                    'title': row['title'],
+                    'status': row['status'],
+                    'createUser': row['createUser'],
+                    'execution_time': str(row['execution_time']),
+                    'start_date': row['start_date'].strftime("%Y-%m-%d %H:%M:%S"),
+                    'end_date': row['end_date'].strftime("%Y-%m-%d %H:%M:%S")
+                }
+            )
+        response = {
+            'data': data
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        # 关闭数据库
+        cursor.close()
+        connection.close()
 
 
 if __name__ == '__main__':
