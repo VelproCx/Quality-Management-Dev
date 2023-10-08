@@ -56,6 +56,6 @@ def run_edp_performance():
         'start_time': start_time.strftime("%Y-%m-%d %H:%M:%S"),
         'execution_time': str(execution_time),
         'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        'type': 2
+        'type': 1
     }
     return response
