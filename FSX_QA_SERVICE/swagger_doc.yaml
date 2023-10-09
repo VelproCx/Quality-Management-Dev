@@ -1,9 +1,119 @@
 swagger: "2.0"
 info:
-  title: EDP Regression API
-  description: API for running EDP regression
+  title: EDP Admin API
+  description: API for EDP Admin
   version: "1.0"
 paths:
+  /api/user/login:
+    post:
+      tags:
+        - EDP Uses
+      summary: User Login
+      description: Authenticate user credentials and perform login
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              password:
+                type: string
+          description: JSON object containing the username and password
+      responses:
+        200:
+          description: Login successful
+        401:
+          description: Unauthorized - Invalid username or password
+        500:
+          description: Internal Server Error
+  /api/user/create:
+    post:
+      tags:
+        - EDP Uses
+      summary: Create User
+      description: Create a new user with the provided details
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+              email:
+                type: string
+              password:
+                type: string
+          description: JSON object containing the user details
+      responses:
+        200:
+          description: User created successfully
+        400:
+          description: Bad Request - Required fields missing or empty
+        500:
+          description: Internal Server Error
+  /api/user/delete:
+    delete:
+      tags:
+        - EDP Uses
+      summary: Delete User
+      description: Delete a user with the provided username
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              username:
+                type: string
+          description: JSON object containing the username
+      responses:
+        200:
+          description: User deleted successfully
+        404:
+          description: User not found
+        500:
+          description: Internal Server Error
+  /api/user/search:
+    get:
+      tags:
+        - EDP Uses
+      summary: Search User
+      description: Search for users based on provided filters
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              id:
+                type: string
+              username:
+                type: string
+              email:
+                type: string
+          description: JSON object containing the search filters
+      responses:
+        200:
+          description: User found
+        404:
+          description: User not found
+        500:
+          description: Internal Server Error
   /api/run_edp_regression:
     post:
       tags:
@@ -138,3 +248,65 @@ paths:
                     end_date:
                       type: "string"
                       format: "date-time"
+  /api/run_edp_performance:
+    post:
+      tags:
+        - EDP Performance
+      summary: Run EDP Performance
+      description: Run EDP performance tests with the provided parameters
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                creator:
+                  type: string
+                account:
+                  type: string
+                Sender:
+                  type: string
+                Target:
+                  type: string
+                Host:
+                  type: string
+                Port:
+                  type: string
+          description: JSON array containing the performance test parameters
+      responses:
+        200:
+          description: Successfully ran the EDP performance tests
+        400:
+          description: Bad Request
+  /api/download_performance_logs:
+    get:
+      tags:
+        - EDP Performance
+      summary: Download Performance Logs
+      description: Download performance logs for the specified accounts
+      produces:
+        - application/zip
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              account:
+                type: array
+                items:
+                  type: string
+          description: JSON object containing the account names
+      responses:
+        200:
+          description: Successfully downloaded the performance logs
+        400:
+          description: Invalid file path
+        404:
+          description: The file is not found

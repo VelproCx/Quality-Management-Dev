@@ -14,16 +14,13 @@ from FSX_QA_SERVICE.apis.Application import global_connection_pool
 from flask import Flask, send_file, Response, request, jsonify, Blueprint, make_response
 
 app_run_enp_performance = Blueprint("run_enp_performance", __name__)
-
 CORS(app_run_enp_performance, supports_credentials=True)
-
 
 @app_run_enp_performance.route('/api/run_edp_performance', methods=['POST'])
 @swag_from('../swagger_doc.yaml')
 def run_edp_performance():
     '''
     [
-    # {"title" : "test_performance"},
     {"creator": "zhenghuaimao"},
     {"account": "RSIT_EDP_ACCOUNT_1", "Sender": "RSIT_EDP_1", "Target": "FSX_SIT_EDP", "Host": "54.250.107.1", "Port": "5001"}
     ]
@@ -32,9 +29,7 @@ def run_edp_performance():
     # 获取参数并将其转换为json格式
     data = request.get_data()
     datas = json.loads(data)
-    # title = request.form.get('title')  # 获取title
-    # creator = request.form.get('creator')  # 获取创建人
-    # title = datas[0]["title"]
+    # 获取创建人
     creator = datas[0]["creator"]
 
     file_path = 'edp_fix_client/initiator/edp_performance_test/edp_performance_application.py'
@@ -155,3 +150,13 @@ def create_zip_archive(file_paths, zip_file_path):
     with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for file_path in file_paths:
             zipf.write(file_path, os.path.basename(file_path))
+
+app = Flask(__name__)
+
+app.register_blueprint(app_run_enp_performance)
+
+swagger = Swagger(app)
+
+if __name__ == '__main__':
+    app.run()
+
