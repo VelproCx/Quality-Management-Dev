@@ -151,12 +151,5 @@ def create_zip_archive(file_paths, zip_file_path):
         for file_path in file_paths:
             zipf.write(file_path, os.path.basename(file_path))
 
-app = Flask(__name__)
 
-app.register_blueprint(app_run_enp_performance)
-
-swagger = Swagger(app)
-
-if __name__ == '__main__':
-    app.run()
 
