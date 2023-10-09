@@ -223,10 +223,10 @@ def main():
 
         initiator.start()
         application.load_test_case(account)
-        # sleep_duration = timedelta(minutes=1)
-        # end_time = datetime.now() + sleep_duration
-        # while datetime.now() < end_time:
-        #     time.sleep(1)
+        sleep_duration = timedelta(minutes=1)
+        end_time = datetime.now() + sleep_duration
+        while datetime.now() < end_time:
+            time.sleep(1)
         initiator.stop()
 
     except (fix.ConfigError, fix.RuntimeError) as e:
