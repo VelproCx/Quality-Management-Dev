@@ -105,6 +105,15 @@ def run_edp_performance():
 @app_run_enp_performance.route('/api/download_performance_logs', methods=['GET'])
 @swag_from('../swagger_doc.yaml')
 def download_performance_log_file():
+    '''
+    {
+    "account":[
+        "RSIT_EDP_ACCOUNT_1",
+        "RSIT_EDP_ACCOUNT_5"
+    ]
+    }
+    '''
+
     date = request.get_json()
     # 判断传参是否为空
     if date is None or date == '':
