@@ -1,7 +1,8 @@
+import json
 import random
 import string
 from flask_cors import CORS
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
@@ -56,6 +57,42 @@ def queryEdpRegressionList():
 
 @app.route('/api/edp_regression_list/create_regression_task', methods=['POST'])
 def createEdpRegressionTask():
+    data = {
+        'status': 'ok',
+        'msg': '创建成功',
+        'code': 20000
+    }
+
+    return jsonify(data)
+
+
+@app.route('/api/edp_performance_list', methods=['GET'])
+def queryEdpPerformanceList():
+    data_list = [
+        {
+            'createdTime': '2023-09-07 12:34:56',  # 请替换为实际的日期时间
+            'source': random.choice(['xiang.chen', 'huaimao.zheng', 'taotao.zhang', 'miaolan.huang']),
+            'status': random.choice(['progressing', 'completed']),
+        }
+        for _ in range(10)
+    ]
+
+    data = {
+        'data': data_list,
+        'status': 'ok',
+        'msg': '请求成功',
+        'code': 20000
+    }
+
+    return jsonify(data)
+
+
+@app.route('/api/performance_list/create_performance_task', methods=['POST'])
+def createEdpPerformanceTask():
+    # 获取参数并将其转换为json格式
+    recdata = request.get_data()
+    datas = json.loads(recdata)
+    print(datas)
     data = {
         'status': 'ok',
         'msg': '创建成功',
