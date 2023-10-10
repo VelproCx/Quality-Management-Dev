@@ -161,7 +161,7 @@ class Application(fix.Application):
     def load_test_case(self, account):
         order_num = 0
         """Run"""
-        # with open('../../testcases/topix400_case.json', 'r') as f_json:
+        # with open('edp_fix_client/testcases/topix400_case.json', 'r') as f_json:
         with open('edp_fix_client/initiator/edp_performance_test/uat_test_with_hrt.json', 'r') as f_json:
             case_data_list = json.load(f_json)
             time.sleep(2)
@@ -223,7 +223,7 @@ def main():
 
         initiator.start()
         application.load_test_case(account)
-        sleep_duration = timedelta(minutes=1)
+        sleep_duration = timedelta(minutes=10)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)

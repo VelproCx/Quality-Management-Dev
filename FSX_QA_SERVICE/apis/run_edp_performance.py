@@ -16,13 +16,12 @@ from flask import Flask, send_file, Response, request, jsonify, Blueprint, make_
 app_run_enp_performance = Blueprint("run_enp_performance", __name__)
 CORS(app_run_enp_performance, supports_credentials=True)
 
-@app_run_enp_performance.route('/api/run_edp_performance', methods=['POST'])
+@app_run_enp_performance.route('/api/performance_list/run_edp_performance', methods=['POST'])
 @swag_from('../swagger_doc.yaml')
 def run_edp_performance():
     '''
     [
-    {"creator": "zhenghuaimao"},
-    {"account": "RSIT_EDP_ACCOUNT_1", "Sender": "RSIT_EDP_1", "Target": "FSX_SIT_EDP", "Host": "54.250.107.1", "Port": "5001"}
+    {"account": "RSIT_EDP_ACCOUNT_1", "Sender": "RSIT_EDP_1", "Target": "FSX_SIT_EDP", "Host": "54.250.107.1", "Port": "5001", "creator":"zhenghuaimao"}
     ]
     '''
 
@@ -30,12 +29,12 @@ def run_edp_performance():
     data = request.get_data()
     datas = json.loads(data)
     # 获取创建人
-    creator = datas[0]["creator"]
+    creator = datas["creator"]
 
     file_path = 'edp_fix_client/initiator/edp_performance_test/edp_performance_application.py'
     try:
         run_all_shell = []
-        for param in datas[1:]:
+        for param in datas:
             # 构建shell命令
             shell_command = '''
     python3 {file_path} --account {account} --Sender {Sender} --Target {Target} --Host {Host} --Port {Port} & sleep 1
@@ -97,7 +96,7 @@ def run_edp_performance():
     return Response(json_response, mimetype='application/json'), 200
 
 
-@app_run_enp_performance.route('/api/download_performance_logs', methods=['GET'])
+@app_run_enp_performance.route('/api/performance_list/download_performance_logs', methods=['GET'])
 @swag_from('../swagger_doc.yaml')
 def download_performance_log_file():
     '''
@@ -145,11 +144,71 @@ def download_performance_log_file():
     # 删除临时目录及其内容
     shutil.rmtree(temp_dir)
 
-    return response
+    return response, 200
 def create_zip_archive(file_paths, zip_file_path):
     with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for file_path in file_paths:
             zipf.write(file_path, os.path.basename(file_path))
 
+
+@app_run_enp_performance.route('/api/performance_list/view_edp_performance_case', methods=['GET'])
+@swag_from("../swagger_doc.yaml")
+def view_edp_performance_case():
+    '''
+    {
+    "filename":"topix400_case"
+    }
+    '''
+    data = request.get_data()
+    datas = json.loads(data)
+    file_name = datas["filename"]
+    case_file_path = 'edp_fix_client/testcases/{}.json'.format(file_name)
+
+    if os.path.exists(case_file_path):
+        # 读取json文件
+        with open(case_file_path, "r") as file:
+            file_content = file.read()
+            date = json.loads(file_content)
+        # 获取testCase列表
+        test_cases = date["testCase"]
+        # 统计Symbol数量
+        symbol_count = len([test_case["Symbol"] for test_case in test_cases])
+        response = {
+            "case_count": symbol_count,
+            "file_content": file_content
+        }
+        return jsonify(response), 200
+    else:
+        return jsonify({"Error": "The file is not found"}), 404
+
+@app_run_enp_performance.route('/api/edp_performance_list', methods=['GET'])
+@swag_from("../swagger_doc.yaml")
+def edp_performance_list():
+    connection = global_connection_pool.connection()
+    cursor = connection.cursor()
+    try:
+        sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.performance WHERE type = 1;"
+        cursor.execute(sql)
+        rows = cursor.fetchall()
+        data = []
+        for row in rows:
+            data.append(
+                {
+                    "createdTime": row["start_date"],
+                    "source": row["createUser"],
+                    "status": row["status"]
+                }
+            )
+        response = {
+            'data': data
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        return jsonify({"Error": str(e)}), 500
+
+    finally:
+        cursor.close()
+        connection.close()
 
 
