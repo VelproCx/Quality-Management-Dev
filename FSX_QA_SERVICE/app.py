@@ -2,7 +2,8 @@
 from flask import Flask
 from apis.Application import app_application
 from apis.user import app_user
-from apis.run_edp_performance import app_run_enp_performance
+from apis.run_edp_performance import app_run_edp_performance
+from apis.run_edp_full_stock import app_run_edp_full_stock
 from flask_cors import CORS
 from flask import render_template
 
@@ -13,11 +14,13 @@ CORS(app, supports_credentials=True)
 
 app.register_blueprint(app_application)
 app.register_blueprint(app_user)
-app.register_blueprint(app_run_enp_performance)
+app.register_blueprint(app_run_edp_performance)
+app.register_blueprint(app_run_edp_full_stock)
 
 @app.route('/')
 def index():
     return render_template("index.html")
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=8080)

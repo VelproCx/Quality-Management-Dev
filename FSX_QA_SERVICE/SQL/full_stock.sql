@@ -4,8 +4,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for performance
 -- ----------------------------
-DROP TABLE IF EXISTS `performance`;
-CREATE TABLE `performance` (
+DROP TABLE IF EXISTS `fullstock`;
+CREATE TABLE `fullstock` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '自增ID',
   `taskId` VARCHAR(255) DEFAULT NULL COMMENT '任务Id',
   `status` varchar(20) DEFAULT NULL COMMENT '执行状态 1-success 2-fail 3-error',

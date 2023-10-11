@@ -23,6 +23,6 @@ sleep 3
 #sleep 1
 #python3 /app/data/qa-tools/edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_9 --Sender RSIT_EDP_9 --Target FSX_SIT_EDP --Host clientgateway109 --Port 5001 &
 
-python3 /Users/zhenghuaimao/Desktop/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_1 --Sender RSIT_EDP_1 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5001
+python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_1 --Sender RSIT_EDP_1 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5001
 
 

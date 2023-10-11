@@ -172,6 +172,8 @@ class Application(fix.Application):
                     self.insert_order_request(row, account, order_num)
                     time.sleep(0.0025)
 
+
+
     def read_config(self, Sender, Target, Host, Port):
         # 读取并修改配置文件
         config = configparser.ConfigParser()
@@ -223,7 +225,7 @@ def main():
 
         initiator.start()
         application.load_test_case(account)
-        sleep_duration = timedelta(minutes=10)
+        sleep_duration = timedelta(minutes=1)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)
