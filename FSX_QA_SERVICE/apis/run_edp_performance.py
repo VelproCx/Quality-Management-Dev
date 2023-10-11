@@ -222,7 +222,7 @@ def edp_performance_list():
         total_count = cursor.fetchone()["total_count"]
 
         # 查询数据
-        data_sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.performance WHERE `type` = 1;"
+        data_sql = "SELECT `start_date`, `status`, `createUser`, `taskId` FROM `qa_admin`.performance WHERE `type` = 1;"
         cursor.execute(data_sql)
         rows = cursor.fetchall()
 
@@ -230,6 +230,7 @@ def edp_performance_list():
         for row in rows:
             data.append(
                 {
+                    "taskId": row["taskId"],
                     "createdTime": row["start_date"],
                     "source": row["createUser"],
                     "status": row["status"]
