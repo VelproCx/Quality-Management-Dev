@@ -72,7 +72,7 @@ def queryEdpPerformanceList():
         {
             'createdTime': '2023-09-07 12:34:56',  # 请替换为实际的日期时间
             'source': random.choice(['xiang.chen', 'huaimao.zheng', 'taotao.zhang', 'miaolan.huang']),
-            'status': random.choice(['progressing', 'completed']),
+            'status': random.choice(['progressing', 'completed', 'error']),
         }
         for _ in range(10)
     ]
