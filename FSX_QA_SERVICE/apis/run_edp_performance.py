@@ -33,7 +33,7 @@ def get_task_id():
 def run_edp_performance():
     '''
     {
-    'cource'： 'Admin'
+    'source'： 'Admin'
     'commands': [
         {
             'value': 'python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_1 --Sender RSIT_EDP_1 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5001'
@@ -50,7 +50,7 @@ def run_edp_performance():
     if not data:
         return jsonify({"error": "Invalid request data"}), 400
     datas = json.loads(data)
-    creator = datas["cource"]
+    creator = datas["source"]
     start_time = None
     try:
         run_all_shell = []
@@ -69,11 +69,11 @@ def run_edp_performance():
 
     except subprocess.CalledProcessError as e:
         output = e.stderr.strip()
-        result = "Fail"
+        result = "Error"
 
     except subprocess.TimeoutExpired:
         output = "Execution time out"
-        result = "Fail"
+        result = "Error"
 
     # 记录结束时间
     end_time = datetime.now()
