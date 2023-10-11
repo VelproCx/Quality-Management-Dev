@@ -216,9 +216,16 @@ def edp_performance_list():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
     try:
-        sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.performance WHERE `type` = 1;"
-        cursor.execute(sql)
+        # 统计数据总数
+        count_sql = "SELECT COUNT(*) as total_count FROM `qa_admin`.performance WHERE `type` = 1;"
+        cursor.execute(count_sql)
+        total_count = cursor.fetchone()["total_count"]
+
+        # 查询数据
+        data_sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.performance WHERE `type` = 1;"
+        cursor.execute(data_sql)
         rows = cursor.fetchall()
+
         data = []
         for row in rows:
             data.append(
@@ -229,6 +236,7 @@ def edp_performance_list():
                 }
             )
         response = {
+            'total_count': total_count,
             'data': data
         }
         return jsonify(response), 200
