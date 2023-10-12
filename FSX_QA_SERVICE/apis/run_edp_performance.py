@@ -28,18 +28,26 @@ def get_task_id():
     return str(t) + str1 + str(taskId).zfill(2)
 
 
+def process_row(row):
+    return {
+        "createdTime": row["start_date"],
+        "source": row["createUser"],
+        "status": row["status"]
+    }
+
+
 @app_run_edp_performance.route('/api/performance_list/run_edp_performance', methods=['POST'])
 @swag_from('../swagger_doc.yaml')
 def run_edp_performance():
     '''
     {
-    'source'： 'Admin'
-    'commands': [
+    "source": "Admin",
+    "commands": [
         {
-            'value': 'python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_1 --Sender RSIT_EDP_1 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5001'
+            "value": "python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_1 --Sender RSIT_EDP_1 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5001"
         },
         {
-            'value': 'python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_2 --Sender RSIT_EDP_2 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5002'
+            "value": "python3 edp_fix_client/initiator/edp_performance_test/edp_performance_application.py --account RSIT_EDP_ACCOUNT_8 --Sender RSIT_EDP_8 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5008"
         }
     ]
     }
@@ -64,16 +72,17 @@ def run_edp_performance():
         # 记录shell脚本开始执行的时间
         start_time = datetime.now()
         result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=1800)
+        print(result)
         output = result.stdout.strip() if result.stdout else result.stderr.strip()
-        result = "Success"
+        result = "progressing"
 
     except subprocess.CalledProcessError as e:
         output = e.stderr.strip()
-        result = "Error"
+        result = "error"
 
     except subprocess.TimeoutExpired:
         output = "Execution time out"
-        result = "Error"
+        result = "error"
 
     # 记录结束时间
     end_time = datetime.now()
@@ -139,7 +148,7 @@ def download_performance_log_file():
     accounts = date["account"]
     # 循环从参数中读取account，并拼接日志地址
     for account in accounts:
-        log_path = "edp_fix_client/initiator/edp_performance_test/logs/{}_Report.log".format(account)
+        log_path = "edp_fix_client/initiator/edp_performance_test/report/{}_Report.log".format(account)
         # 如果日志不存在，抛出错误
         if not os.path.exists(log_path):
             return jsonify({"Error": "The file is not found"}), 404
@@ -248,3 +257,92 @@ def edp_performance_list():
     finally:
         cursor.close()
         connection.close()
+
+
+@app_run_edp_performance.route('/api/performance_list/search_performance_task', methods=['GET'])
+@swag_from("../swagger_doc.yaml")
+def search_performance_task():
+    connection = global_connection_pool.connection()
+    cursor = connection.cursor()
+
+    data = request.get_data()
+
+    if data is not None and data != b'':
+        datas = json.loads(data)
+
+        if 'pageSize' in datas and datas['pageSize'] != "":
+            pageSize = datas["pageSize"]
+        else:
+            pageSize = 10
+
+        if 'current' in datas and datas['current'] != "":
+            current = datas["current"]
+        else:
+            current = 1
+
+        sql = ""
+
+        if "source" in datas and datas["source"] != "":
+            sql += " AND `createUser` = '{}'".format(datas["source"])
+
+        if "status" in datas and datas["status"] != "":
+            sql += " AND `status` = '{}'".format(datas["status"])
+
+        if "createdTime" in datas and datas["createdTime"] != "":
+            sql += " AND `start_date` LIKE '%{}%'".format(datas["createdTime"])
+
+        sql = sql + ' ORDER BY `start_date` DESC LIMIT {},{}'.format((current - 1) * pageSize, pageSize)
+
+        try:
+            # 统计数据总数
+            count_sql = "SELECT COUNT(*) as total_count FROM `qa_admin`.performance WHERE `type` = 1" + sql
+            print(count_sql)
+            cursor.execute("SELECT COUNT(*) as total_count FROM `qa_admin`.performance WHERE `type` = 1" + sql)
+            total_count = cursor.fetchone()["total_count"]
+
+            # 查询数据
+            cursor.execute("SELECT * FROM `qa_admin`.performance WHERE `type` = 1" + sql)
+            search_result = cursor.fetchall()
+
+            data = [process_row(row) for row in search_result]
+
+            response = {
+                "total_count": total_count,
+                "data": data
+            }
+
+            return jsonify(response), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        finally:
+            cursor.close()
+            connection.close()
+
+    else:
+        try:
+            print("kong ")
+            # 统计数据总数
+            cursor.execute("SELECT COUNT(*) as total_count FROM `qa_admin`.performance WHERE `type` = 1;")
+            total_count = cursor.fetchone()["total_count"]
+
+            # 查询数据
+            cursor.execute("SELECT * FROM `qa_admin`.performance WHERE `type` = 1;")
+            search_result = cursor.fetchall()
+
+            data = [process_row(row) for row in search_result]
+
+            response = {
+                "total_count": total_count,
+                "data": data
+            }
+
+            return jsonify(response), 200
+
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+        finally:
+            cursor.close()
+            connection.close()
