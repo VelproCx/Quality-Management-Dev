@@ -546,14 +546,6 @@ class Application(fix.Application):
                         time.sleep(3)
                     self.order_cancel_request(row)
 
-    def gen_thread(self):
-        threads = []
-        for _ in range(1):
-            t = threading.Thread(target=self.load_test_case())
-            threads.append(t)
-        for t in threads:
-            t.start()
-
     def read_config(self, Sender, Target, Host, Port):
         # 读取并修改配置文件
         config = configparser.ConfigParser(allow_no_value=True)
@@ -587,7 +579,6 @@ def main():
         Host = args.Host
         Port = args.Port
 
-
         cfg = Application()
         cfg.Sender = Sender
         cfg.Target = Target
@@ -603,7 +594,7 @@ def main():
         initiator = fix.SocketInitiator(application, store_factory, settings, log_factory)
 
         initiator.start()
-        application.gen_thread()
+        application.load_test_case()
         sleep_duration = timedelta(minutes=1)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
