@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf8 -*-
 """FIX Application"""
+import argparse
+import configparser
 import difflib
 import os
 import random
@@ -29,7 +31,7 @@ generation_path = os.path.join(Parent_path, "file_generation.py")
 data_comparison_path = os.path.join(Parent_path, "data_comparison.py")
 
 # log
-setup_logger('logfix', '../edp_fix_client/initiator/edp_regression_test/logs/edp_report.log')
+setup_logger('logfix', 'edp_fix_client/initiator/edp_regression_test/logs/edp_report.log')
 logfix = logging.getLogger('logfix')
 
 
@@ -51,6 +53,11 @@ class Application(fix.Application):
     def __init__(self):
         super().__init__()
         self.sessionID = None
+        self.account = None
+        self.Sender = None
+        self.Target = None
+        self.Host = None
+        self.Port = None
 
     def onCreate(self, sessionID):
         # "服务器启动时候调用此方法创建"
@@ -92,9 +99,12 @@ class Application(fix.Application):
             else:
                 errorCode_list.append(" ")
 
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', ordstatus_list, 2, 'J')
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', errorCode_list, 2, 'K')
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', self.Result, 2, 'L')
+        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', ordstatus_list, 2,
+                           'J')
+        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', errorCode_list, 2,
+                           'K')
+        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', self.Result, 2,
+                           'L')
         return
 
     def toAdmin(self, message, sessionID):
@@ -376,7 +386,6 @@ class Application(fix.Application):
             self.onMessage(message, sessionID)
         return
 
-
     def onMessage(self, message, sessionID):
         """Processing application message here"""
         pass
@@ -385,25 +394,29 @@ class Application(fix.Application):
     def logsCheck(self):
         response = ['ps: 若列表存在failed数据，请查看report.log文件']
         self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 2, 'M')
-        with open('../edp_fix_client/initiator/edp_regression_test/logs/edp_report.log', 'r') as f:
+        with open('edp_fix_client/initiator/edp_regression_test/logs/edp_report.log', 'r') as f:
             content = f.read()
 
         if 'FixMsg Error' in content:
             logfix.info('FixMsg is NG')
             response = ['FixMsg is NG']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4, 'M')
+            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+                               'M')
         else:
             logfix.info('FixMsg is OK')
             response = ['FixMsg is OK']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4, 'M')
+            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+                               'M')
         if 'Order execType error' in content:
             logfix.info("execType is NG")
             response = ['execType is NG']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5, "M")
+            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+                               "M")
         else:
             logfix.info("execType is OK")
             response = ['execType is OK']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5, "M")
+            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+                               "M")
 
     def writeResExcel(self, filename, data, row, column):
         # 打开现有的 Excel 文件或创建新的 Workbook
@@ -509,9 +522,9 @@ class Application(fix.Application):
         """Run"""
         # EDP_Functional_Test_Matrix.json
 
-        with open('../edp_fix_client/testcases/test.json', 'r') as f_json:
-            generation('../edp_fix_client/testcases/test.json',
-                       '../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx')
+        with open('edp_fix_client/testcases/test.json', 'r') as f_json:
+            generation('edp_fix_client/testcases/test.json',
+                       'edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx')
             case_data_list = json.load(f_json)
             time.sleep(2)
             # 循环所有用例，并把每条用例放入runTestCase方法中，
@@ -526,7 +539,8 @@ class Application(fix.Application):
 
                 elif row["ActionType"] == 'CancelAck':
                     # 增加判断条件，判断是否为需要cancel的symbol
-                    if row["Symbol"] == "1496" or row["Symbol"] == "2927" or row["Symbol"] == "3915" or row["Symbol"] == "3916":
+                    if row["Symbol"] == "1496" or row["Symbol"] == "2927" or row["Symbol"] == "3915" or row[
+                        "Symbol"] == "3916":
                         time.sleep(3)
                     else:
                         time.sleep(3)
@@ -540,18 +554,57 @@ class Application(fix.Application):
         for t in threads:
             t.start()
 
+    def read_config(self, Sender, Target, Host, Port):
+        # 读取并修改配置文件
+        config = configparser.ConfigParser(allow_no_value=True)
+        config.optionxform = str  # 保持键的大小写
+
+        # 设置选项转换函数
+        config.read('edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg')
+        config.set('SESSION', 'SenderCompID', Sender)
+        config.set('SESSION', 'TargetCompID', Target)
+        config.set('SESSION', 'SocketConnectHost', Host)
+        config.set('SESSION', 'SocketConnectPort', Port)
+
+        with open('edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg', 'w') as configfile:
+            config.write(configfile, space_around_delimiters=False)
+
 
 def main():
     try:
-        settings = fix.SessionSettings("../edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg")
+        # 使用argparse的add_argument方法进行传参
+        parser = argparse.ArgumentParser()  # 创建对象
+        parser.add_argument('--account', default='RSIT_EDP_ACCOUNT_7', help='choose account to use for test')
+        parser.add_argument('--Sender', default='RSIT_EDP_7', help='choose Sender to use for test')
+        parser.add_argument('--Target', default='FSX_SIT_EDP', help='choose Target to use for test')
+        parser.add_argument('--Host', default='54.250.107.1', help='choose Host to use for test')
+        parser.add_argument('--Port', default='5007', help='choose Port to use for test')
+
+        args = parser.parse_args()  # 解析参数
+        account = args.account
+        Sender = args.Sender
+        Target = args.Target
+        Host = args.Host
+        Port = args.Port
+
+
+        cfg = Application()
+        cfg.Sender = Sender
+        cfg.Target = Target
+        cfg.Host = Host
+        cfg.Port = Port
+        cfg.read_config(Sender, Target, Host, Port)
+
+        settings = fix.SessionSettings("edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg")
         application = Application()
-        storefactory = fix.FileStoreFactory(settings)
-        logfactory = fix.FileLogFactory(settings)
-        initiator = fix.SocketInitiator(application, storefactory, settings, logfactory)
+        application.account = account
+        store_factory = fix.FileStoreFactory(settings)
+        log_factory = fix.FileLogFactory(settings)
+        initiator = fix.SocketInitiator(application, store_factory, settings, log_factory)
 
         initiator.start()
         application.gen_thread()
-        sleep_duration = timedelta(minutes=2)
+        sleep_duration = timedelta(minutes=1)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)

@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 from flask import Flask
+
+from apis.run_edp_regression import app_run_edp_regression
 from apis.Application import app_application
 from apis.user import app_user
 from apis.run_edp_performance import app_run_edp_performance
@@ -16,6 +18,7 @@ app.register_blueprint(app_application)
 app.register_blueprint(app_user)
 app.register_blueprint(app_run_edp_performance)
 app.register_blueprint(app_run_edp_full_stock)
+app.register_blueprint(app_run_edp_regression)
 
 @app.route('/')
 def index():

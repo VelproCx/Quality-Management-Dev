@@ -7,7 +7,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `regression`;
 CREATE TABLE `regression` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '自增ID',
-  `title` varchar(200) DEFAULT NULL COMMENT '运行标题',
+  `taskId` VARCHAR(255) DEFAULT NULL COMMENT '任务Id',
   `status` varchar(20) DEFAULT NULL COMMENT '执行状态 1-success 2-fail 3-error',
   `type` tinyint(1) DEFAULT NULL COMMENT '项目类型 1-edp 2-rolx 3-rex',
   `createUser` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '创建人',
