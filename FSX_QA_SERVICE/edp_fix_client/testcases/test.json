@@ -3,7 +3,7 @@
        {
       "Id": "52",
       "ScenarioName": "Quantity Check(Lot size=100,Quantity=99)",
-      "Account": "RSIT_EDP_ACCOUNT_8",
+      "Account": "RSIT_EDP_ACCOUNT_9",
       "Market": "EDP",
       "ActionType": "NewAck",
       "Comment": "Lot size=100,Quantity=99",
@@ -27,7 +27,7 @@
     {
       "Id": "2",
       "ScenarioName": "Regular Order Flow-A(New Order->EDP Fill Indicate->EDP ToSTNeT Confirmation)",
-      "Account": "RSIT_EDP_ACCOUNT_8",
+      "Account": "RSIT_EDP_ACCOUNT_9",
       "Market": "EDP",
       "ActionType": "NewAck",
       "Comment": "EDP_Market_NewAck_Buy",

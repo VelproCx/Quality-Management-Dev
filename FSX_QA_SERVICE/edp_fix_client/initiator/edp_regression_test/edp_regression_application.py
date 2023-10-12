@@ -81,10 +81,10 @@ class Application(fix.Application):
         # 导入具有完整文件路径的模块
         module1 = SourceFileLoader(module_name, module_path).load_module()
         # 将JSON数据写入文件
-        with open('../edp_fix_client/initiator/edp_regression_test/logs/recv_data.json', 'w') as file:
+        with open('edp_fix_client/initiator/edp_regression_test/logs/recv_data.json', 'w') as file:
             file.write(json_data)
-        self.Result = module1.compare_field_values('../edp_fix_client/testcases/test.json',
-                                                   '../edp_fix_client/initiator/edp_regression_test/logs/recv_data.json',
+        self.Result = module1.compare_field_values('edp_fix_client/testcases/test.json',
+                                                   'edp_fix_client/initiator/edp_regression_test/logs/recv_data.json',
                                                    'ordstatus')
         print("Session (%s) logout !" % sessionID.toString())
 
@@ -99,11 +99,11 @@ class Application(fix.Application):
             else:
                 errorCode_list.append(" ")
 
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', ordstatus_list, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', ordstatus_list, 2,
                            'J')
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', errorCode_list, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', errorCode_list, 2,
                            'K')
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', self.Result, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', self.Result, 2,
                            'L')
         return
 
@@ -393,29 +393,29 @@ class Application(fix.Application):
     # 判断log文件中是否存在 Market Price is not matching
     def logsCheck(self):
         response = ['ps: 若列表存在failed数据，请查看report.log文件']
-        self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 2, 'M')
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 2, 'M')
         with open('edp_fix_client/initiator/edp_regression_test/logs/edp_report.log', 'r') as f:
             content = f.read()
 
         if 'FixMsg Error' in content:
             logfix.info('FixMsg is NG')
             response = ['FixMsg is NG']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
                                'M')
         else:
             logfix.info('FixMsg is OK')
             response = ['FixMsg is OK']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
                                'M')
         if 'Order execType error' in content:
             logfix.info("execType is NG")
             response = ['execType is NG']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
                                "M")
         else:
             logfix.info("execType is OK")
             response = ['execType is OK']
-            self.writeResExcel('../edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
                                "M")
 
     def writeResExcel(self, filename, data, row, column):
