@@ -27,7 +27,7 @@ def login():
             return jsonify({'message': 'The account password cannot be empty'})
         else:
             # 执行查询用户语句
-            sql = "SELECT * FROM `users` WHERE `username` = %s AND `password` = %s"
+            sql = "SELECT * FROM `qa_admin`.`UsersRecord` WHERE `username` = %s AND `password` = %s"
             cursor.execute(sql, (username, password))
             # 获取查询结果
             result = cursor.fetchone()
@@ -63,7 +63,7 @@ def create_user():
         if not username or not email or not password:
             return jsonify({'message': 'Required fields cannot be empty'}), 400
         # 执行SQL
-        sql = "SELECT * FROM `users` WHERE `username` = %s "
+        sql = "SELECT * FROM `UsersRecord` WHERE `username` = %s "
         cursor.execute(sql, username)
         # 获取查询结果
         result = cursor.fetchone()
@@ -71,7 +71,7 @@ def create_user():
         if result:
             return jsonify({'message': 'User exists '}), 400
         else:
-            create_user_sql = "INSERT INTO `users` (`username`, `email`, `password`) VALUES (%s, %s, %s)"
+            create_user_sql = "INSERT INTO `UsersRecord` (`username`, `email`, `password`) VALUES (%s, %s, %s)"
             cursor.execute(create_user_sql, (username, email, password))
             connection.commit()
             return jsonify({'message': 'Create user succeed'})
@@ -95,13 +95,13 @@ def delete_user():
     # 创建游标
     cursor = connection.cursor()
     # 执行SQL
-    sql = "SELECT * FROM `users` WHERE `username` = %s "
+    sql = "SELECT * FROM `UsersRecord` WHERE `username` = %s "
     cursor.execute(sql, username)
     # 获取查询结果
     result = cursor.fetchone()
     try:
         if result:
-            delete_user_sql = "DELETE FROM `users` WHERE `username` = %s"
+            delete_user_sql = "DELETE FROM `UsersRecord` WHERE `username` = %s"
             cursor.execute(delete_user_sql, username)
             connection.commit()
             return jsonify({'message': 'Delete user succeed'})
@@ -118,7 +118,7 @@ def delete_user():
 def search_user():
     data = request.get_data()
     js_data = json.loads(data)
-    sql = ' SELECT `id`, `username`, `user_status` FROM `users` WHERE `user_status` = 1 '
+    sql = ' SELECT `id`, `username`, `user_status` FROM `UsersRecord` WHERE `user_status` = 1 '
 
     if 'id' in js_data and js_data['id'] != '':
         sql += 'AND `id` = "{}"'.format(js_data['id'])

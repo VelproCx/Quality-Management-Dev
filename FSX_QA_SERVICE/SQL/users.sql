@@ -1,8 +1,8 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
+DROP TABLE IF EXISTS `UsersRecord`;
+CREATE TABLE `UsersRecord` (
   `id` int NOT NULL AUTO_INCREMENT COMMENT '自增id',
   `username` varchar(150) DEFAULT NULL COMMENT '用户名',
   `email` varchar(150) DEFAULT NULL COMMENT '邮箱',
