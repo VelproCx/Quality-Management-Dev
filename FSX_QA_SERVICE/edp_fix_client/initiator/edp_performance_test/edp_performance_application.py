@@ -166,7 +166,7 @@ class Application(fix.Application):
             case_data_list = json.load(f_json)
             time.sleep(2)
             # 循环所有用例，并把每条用例放入runTestCase方法中，
-            while order_num < 1:
+            while order_num < 10:
                 order_num += 1
                 for row in case_data_list["testCase"]:
                     self.insert_order_request(row, account, order_num)
