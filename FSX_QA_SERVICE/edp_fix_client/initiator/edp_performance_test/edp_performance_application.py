@@ -206,7 +206,7 @@ def main():
         Port = args.Port
 
         # report
-        setup_logger('logfix', 'edp_fix_client/initiator/edp_performance_test/logs/{}_Report.log'.format(account))
+        setup_logger('logfix', 'edp_fix_client/initiator/edp_performance_test/report/{}_Report.log'.format(account))
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
