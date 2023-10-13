@@ -1,14 +1,16 @@
+import asyncio
 import json
 import os
+import platform
+import signal
 import time
 import random
 
-from flask import Flask, send_file, Response, jsonify, request, Blueprint
+from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
 from configparser import ConfigParser
-from flasgger import Swagger, swag_from
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 import pymysql
 
@@ -27,10 +29,9 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 app_run_edp_regression = Blueprint("run_edp_regression", __name__)
-app = Flask(__name__)
-swagger = Swagger(app)
 CORS(app_run_edp_regression)  # 允许跨域请求
 taskId = 0
+
 
 def get_task_id():
     global taskId
@@ -41,9 +42,118 @@ def get_task_id():
     return str(t) + str1 + str(taskId).zfill(2)
 
 
+def _decode_bytes(_bytes):
+    encodings = 'utf-8'
+    return _bytes.decode(encodings)
+
+
+def _decode_stream(stream):
+    if not stream:
+        return ''
+    return _decode_bytes(stream.read())
+
+
+def execute_task(datas):
+    creator = datas["source"]
+    wait_timeout = 5
+    cnt, maxcnt = 0, 4
+    retcode = None  # 初始化 retcode
+    stdout = ""
+    stderr = ""
+    status = "progressing"
+
+
+    run_all_shell = []
+    for param in datas['commands']:
+        # 构建 shell命令
+        shell_command = param['value'] + '&\n' + 'sleep 1\n'
+        run_all_shell.append(shell_command)
+
+    command = ''.join(run_all_shell)
+
+    p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    returncode = p.poll()
+    print(returncode)
+
+    # 在等待时发送中间状态的响应给前端
+    response = {
+        'creator': creator,
+        'status': status
+    }
+    yield 'data: {}\n\n'.format(json.dumps(response))
+
+    # yield json.dumps({"status": status})  # 使用 json.dumps 将字典转换为 JSON 字符串
+
+    while cnt < maxcnt:
+        try:
+            p.wait(timeout=wait_timeout)
+        except Exception as e:
+            print(f'attemp{cnt} -> wait error:{e}')
+            cnt += 1
+        finally:
+            if p.returncode is not None:  # 查看是否有退出码,判断进程是否结束
+                break
+
+                # 更新响应字典的中间状态字段
+        response['stderr'] = stderr
+        response['status'] = status
+
+        # 发送中间状态的响应给前端
+        yield 'data: {}\n\n'.format(json.dumps(response))
+
+    if p.returncode is None:
+        print('[Error] retcode is None, maybe timeout, try kill process...')
+        status = "error"
+        if platform.system() == 'Windows':
+            kill_proc_ret = subprocess.run(['taskkill', '/f', '/pid', str(p.pid)], capture_output=True)
+            print(f'[KILLPROC]{_decode_bytes(kill_proc_ret.stdout)}')
+        else:
+            os.kill(p.pid, signal.SIGKILL)
+
+    else:
+        retcode, stdout, stderr = p.returncode, _decode_stream(p.stdout), _decode_stream(p.stderr)
+        if stderr == "":
+            print(f'[Error] stderr: {stderr}')
+            retcode = 1  # 设置 retcode 为非零值，表示发生了错误,脚本没有执行成功
+
+    if retcode == 0:
+        status = "completed"
+    else:
+        status = "error"
+
+
+    response = {
+        'creator': creator,
+        'stdout': stdout,
+        'retcode': retcode,
+        'stderr': stderr,
+        'status': status
+    }
+
+    # 最后发送最终状态的响应给前端
+    yield 'data: {}\n\n'.format(json.dumps(response))
+
+
+@app_run_edp_regression.route('/api/edp_regression_list/run_edp_regression', methods=['POST'])
+def run_edp_regression():
+    data = request.get_data()
+    datas = json.loads(data)
+    if not data:
+        return jsonify({"error": "Invalid request data"}), 400
+
+    # 设置响应头，指定内容类型为text/event-stream
+    headers = {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+    }
+
+    # 将生成器转换为响应对象
+    return Response(stream_with_context(execute_task(datas)), headers=headers)
+
+
 # 运行 regression
 @app_run_edp_regression.route('/api/run_edp_regression', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
 def run_regression():
     # 获取参数并将其转换为json格式
     data = request.get_data()
@@ -100,7 +210,8 @@ def run_regression():
 
     # 构建插入SQL语句
     sql = "INSERT INTO regression (taskId, status, type, start_date, end_date, createUser) VALUES (%s, %s, %s, %s, %s, %s)"
-    values = (taskId, response['status'], int(response['type']), response['start_time'], response['end_time'], response['creator'])
+    values = (taskId, response['status'], int(response['type']), response['start_time'], response['end_time'],
+              response['creator'])
     try:
         # 执行插入操作
         cursor.execute(sql, values)
@@ -119,7 +230,6 @@ def run_regression():
 
 # 下载 edp_report.log
 @app_run_edp_regression.route('/api/download_edp_logs', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def download_log_file():
     log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                     '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
@@ -132,7 +242,6 @@ def download_log_file():
 
 # 下载 edp_report.xlsx
 @app_run_edp_regression.route('/api/download_edp_reports', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def download_report_file():
     report_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                        '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
@@ -145,7 +254,6 @@ def download_report_file():
 
 # 预览edp_report.log
 @app_run_edp_regression.route('/api/preview_edp_log', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def preview_edp_logs():
     log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                     '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
@@ -158,7 +266,6 @@ def preview_edp_logs():
 
 # 预览edp_report.xlsx
 @app_run_edp_regression.route('/api/preview_edp_report', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def preview_edp_report():
     xlsx_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                      '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
@@ -171,7 +278,6 @@ def preview_edp_report():
 
 # 在线编辑case
 @app_run_edp_regression.route('/api/update_edp_testcases', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
 def update_edp_testcases():
     data = request.get_json()  # 获取请求中的json数据
 
@@ -207,7 +313,6 @@ def update_config(section, key, value):
 
 # 编辑配置文件
 @app_run_edp_regression.route('/api/update_edp_config', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
 def update_edp_config():
     # section = request.form.get('section')
     key = request.form.get('key')
@@ -220,7 +325,6 @@ def update_edp_config():
 
 # 获取edp_regression运行历史列表
 @app_run_edp_regression.route('/api/edp_regression_list', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def edp_regression_list():
     try:
         connection = global_connection_pool.connection()
