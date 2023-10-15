@@ -1,6 +1,8 @@
 import json
 import random
 import string
+import time
+
 from flask_cors import CORS
 from flask import Flask, jsonify, request
 
@@ -8,6 +10,14 @@ app = Flask(__name__)
 
 # 启用 CORS 支持，允许来自 localhost:5173 的请求
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+
+
+def get_task_id():
+    taskid = 1
+    # 获取当前时间并且进行格式转换
+    t = int(time.time())
+    str1 = ''.join([str(i) for i in random.sample(range(0, 9), 2)])
+    return str(t) + str1 + str(taskid).zfill(2)
 
 
 @app.route('/api/list/policy', methods=['GET'])
@@ -97,6 +107,70 @@ def createEdpPerformanceTask():
         'status': 'ok',
         'msg': '创建成功',
         'code': 20000
+    }
+
+    return jsonify(data)
+
+
+@app.route('/api/edp_smoke_list', methods=['GET'])
+def querySmokeList():
+    data_list = [
+        {
+            'taskId': ''.join('1241252362362632'),
+            'symbol': random.choice(['7203.EDP', '6758.EDP', '1311.EDP', '5110.EDP']),
+            'ordType': random.choice(['Market', 'Limit']),
+            'side': random.choice(['Buy', 'Sell']),
+            'source': random.choice(['xiang.chen', 'huaimao.zheng', 'taotao.zhang', 'miaolan.huang']),
+            'status': random.choice(['new', 'rejected', 'expired', 'filled', 'canceled', 'cancelRejected']),
+            'createdTime': '2023-09-07 12:34:56',  # 请替换为实际的日期时间
+        }
+        # for _ in range(1)
+    ]
+
+    data = {
+        'data': data_list,
+        'status': 'ok',
+        'msg': '请求成功',
+        'code': 20000
+    }
+
+    return jsonify(data)
+
+
+@app.route('/api/smoke_list/view_edp_smoke', methods=['GET'])
+def ViewSmokeDetail():
+    data_list = [
+        {
+            'taskId': ''.join('1241252362362632'),
+            'symbol': random.choice(['7203.EDP', '6758.EDP', '1311.EDP', '5110.EDP']),
+            'ordType': random.choice(['Market', 'Limit']),
+            'side': random.choice(['Buy', 'Sell']),
+            'source': random.choice(['xiang.chen', 'huaimao.zheng', 'taotao.zhang', 'miaolan.huang']),
+            'status': random.choice(['new', 'rejected', 'expired', 'filled', 'canceled', 'cancelRejected']),
+            'createdTime': '2023-09-07 12:34:56',  # 请替换为实际的日期时间
+            "account": "RUAT_EDP_ACCOUNT_6",
+            "market": "EDP",
+            "actionType": "NewAck",
+            "comment": "EDP_Market_NewAck",
+            "orderQty": 100,
+            "ordType": "2",
+            "side": "2",
+            "price": 851,
+            "symbol": "2927",
+            "timeInForce": "3",
+            "crossingPriceType": "EDP",
+            "rule80A": "P",
+            "cashMargin": "1",
+            "marginTransactionType": "0",
+            "minQty": 0,
+            "orderClassification": "3",
+            "selfTradePreventionId": "0",
+        }
+        # for _ in range(1)
+    ]
+
+    data = {
+        'data': data_list,
     }
 
     return jsonify(data)
