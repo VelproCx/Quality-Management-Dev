@@ -120,7 +120,7 @@ def search_user():
         return jsonify({"Error": "Invalid file path"}), 400
 
 
-@app_user.route("/api/user_list/createUser", methods=['POST'])
+@app_user.route("/api/user_list/create-user", methods=['POST'])
 def create_user():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
@@ -170,7 +170,7 @@ def create_user():
         connection.close()
 
 
-@app_user.route("/api/user_list/deleteUser", methods=['POST'])
+@app_user.route("/api/user_list/delete-user", methods=['POST'])
 def delete_user():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
@@ -202,7 +202,7 @@ def delete_user():
         return jsonify({"error": "User does not exist"})
 
 
-@app_user.route("/api/user_list/userDetails", methods=["GET"])
+@app_user.route("/api/user_list/user-details", methods=["GET"])
 def user_details():
     data = request.args.to_dict()
     if data is not None and data != "":
@@ -229,7 +229,7 @@ def user_details():
         return jsonify({"error": ""})
 
 
-@app_user.route("/aps/user_list/updateUser", methods=["POST"])
+@app_user.route("/aps/user_list/update-user", methods=["POST"])
 def update_user():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
