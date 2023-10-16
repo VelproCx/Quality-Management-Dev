@@ -1,14 +1,16 @@
+import asyncio
 import json
 import os
+import platform
+import signal
 import time
 import random
 
-from flask import Flask, send_file, Response, jsonify, request, Blueprint
+from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
 from configparser import ConfigParser
-from flasgger import Swagger, swag_from
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 import pymysql
 
@@ -16,6 +18,14 @@ import pymysql
 config = ConfigParser()
 config.read('../config/settings.ini')
 config_file = 'edp_fix_client/initiator/edp_regression_test/edp_regression_client.cfg'
+
+# 获取当前日期
+current_date = datetime.now().strftime("%Y-%m-%d")
+report_filename = f"edp_report_{current_date}.xlsx"
+log_filename = f"edp_report_{current_date}.log"
+
+report_file_path = 'edp_fix_client/initiator/edp_regression_test/report/' + report_filename
+log_file_path = 'edp_fix_client/initiator/edp_regression_test/logs/' + log_filename
 
 
 # 使用 str() 函数将 timedelta 对象转换为可序列化的形式
@@ -27,11 +37,11 @@ class CustomJSONEncoder(json.JSONEncoder):
 
 
 app_run_edp_regression = Blueprint("run_edp_regression", __name__)
-app = Flask(__name__)
-swagger = Swagger(app)
 CORS(app_run_edp_regression)  # 允许跨域请求
 taskId = 0
 
+
+# 生成task_id
 def get_task_id():
     global taskId
     taskId += 1
@@ -41,66 +51,44 @@ def get_task_id():
     return str(t) + str1 + str(taskId).zfill(2)
 
 
-# 运行 regression
-@app_run_edp_regression.route('/api/run_edp_regression', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
-def run_regression():
-    # 获取参数并将其转换为json格式
-    data = request.get_data()
-    if not data:
-        return jsonify({"error": "Invalid request data"}), 400
-    datas = json.loads(data)
-    creator = datas["source"]
-    start_time = None
+# 将参数按照指定的编码方式解码为字符串
+def _decode_bytes(_bytes):
+    encodings = 'utf-8'
+    return _bytes.decode(encodings)
 
-    try:
-        run_all_shell = []
-        for param in datas['commands']:
-            # 构建shell命令
-            shell_command = param['value'] + " &\n" + "sleep 1\n"
-            run_all_shell.append(shell_command)
 
-        command = ''.join(run_all_shell)
-        # 记录shell脚本开始执行的时间
-        start_time = datetime.now()
-        result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=1800)
-        output = result.stdout.strip() if result.stdout else result.stderr.strip()
-        result = "Success"
+# 将字节流（bytes）解码为字符串
+def _decode_stream(stream):
+    if not stream:
+        return ''
+    return _decode_bytes(stream.read())
 
-    except subprocess.CalledProcessError as e:
-        output = e.stderr.strip()
-        result = "Fail"
 
-    except subprocess.TimeoutExpired:
-        output = "Execution time out"
-        result = "Fail"
-
-    except KeyboardInterrupt:
-        output = "Execution interrupted"
-        result = "Fail"
-
-    end_time = datetime.now()  # 记录结束时间
-    execution_time = end_time - start_time  # 计算执行时间
-    taskId = get_task_id()
-
-    response = {
-        'creator': creator,
-        'taskId': taskId,
-        'status': result,
-        'output': output,
-        'start_time': start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        'execution_time': str(execution_time),
-        'end_time': end_time.strftime("%Y-%m-%d %H:%M:%S"),
-        'type': 1
-    }
+def insert_response_data(response):
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
 
+    output = response.get('output', '')  # 获取response中的output字段，如果不存在则默认为空字符串
+
+    # 使用二进制读取log文件
+    with open(log_file_path, 'rb') as file:
+        log_file = file.read()
+
+    # 使用二进制读取xlsx文件
+    with open(report_file_path, 'rb') as file:
+        excel_file = file.read()
+
+    # 检查描述字段的长度
+    if len(output) > 255:
+        output = output[:255]  # 截取前 255 个字符
+
     # 构建插入SQL语句
-    sql = "INSERT INTO regression (taskId, status, type, start_date, end_date, createUser) VALUES (%s, %s, %s, %s, %s, %s)"
-    values = (taskId, response['status'], int(response['type']), response['start_time'], response['end_time'], response['creator'])
+    sql = "INSERT INTO RegressionRecord (taskId, status, type, createUser, CreateTime, log_file, excel_file, output) " \
+          "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+    values = (taskId, response['status'], int(response['type']), response['createUser'], response['CreateTime'],
+              log_file, excel_file, output)
     try:
         # 执行插入操作
         cursor.execute(sql, values)
@@ -113,13 +101,123 @@ def run_regression():
         cursor.close()
         connection.close()
 
-    json_response = json.dumps(response)
-    return Response(json_response, mimetype='application/json'), 200
+
+def execute_task(datas):
+    creator = datas["source"]
+    wait_timeout = 5
+    cnt, maxcnt = 0, 2
+    retcode = None  # 初始化 retcode
+    stderr = ""
+    output = None
+    log = None
+    status = "progressing"
+    create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
+
+    run_all_shell = []
+    for param in datas['commands']:
+        # 构建 shell命令
+        shell_command = param['value'] + '&\n' + 'sleep 1\n'
+        run_all_shell.append(shell_command)
+
+    command = ''.join(run_all_shell)
+
+    try:
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+        # 在等待时发送中间状态的响应给前端
+        response = {
+            'createUser': creator,
+            'status': status,
+            'CreateTime': create_time
+        }
+        yield 'data: {}\n\n'.format(json.dumps(response))
+
+        while cnt < maxcnt:
+            try:
+                p.wait(timeout=wait_timeout)
+
+            except Exception as e:
+                print(f'attemp{cnt} -> wait error:{e}')
+                cnt += 1
+            finally:
+                if p.returncode is not None:  # 查看是否有退出码,判断进程是否结束
+                    break
+
+        # 进程没有超时或没有完成时,杀掉进程
+        if p.returncode is None:
+            print('[Error] retcode is None, maybe timeout, try kill process...')
+            if platform.system() == 'Windows':
+                kill_proc_ret = subprocess.run(['taskkill', '/f', '/pid', str(p.pid)], capture_output=True)
+                print(f'[KILLPROC]{_decode_bytes(kill_proc_ret.stdout)}')
+            else:
+                os.kill(p.pid, signal.SIGKILL)
+
+        else:
+            retcode, output, stderr = p.returncode, _decode_stream(p.stdout), _decode_stream(p.stderr)
+            if stderr == "":  # 进程为空
+                output = "connect error, please check the config"
+                retcode = 1  # 设置 retcode 为非零值，表示发生了错误,脚本没有执行成功
+
+            elif 'error' in stderr.lower():  # 进程执行信息有错误
+                output = stderr.split('Error:', 1)[-1].strip()
+                retcode = 1
+
+    # 进程出错被中断
+    except Exception as e:
+        print("Error executing subprocess:", e)
+        retcode = 1  # 设置错误码为非零值
+        output = stderr  # 使用异常信息作为错误信息
+
+    if retcode == 0:
+        status = "completed"
+        response = {
+            'createUser': creator,
+            'CreateTime': create_time,
+            'retcode': retcode,
+            'stderr': stderr,
+            'status': status,
+            'type': 1
+        }
+
+    else:
+        status = "error"
+        response = {
+            'createUser': creator,
+            'CreateTime': create_time,
+            'retcode': retcode,
+            'stderr': stderr,
+            'status': status,
+            'output': output,
+            'type': 1
+        }
+
+    # 最后发送最终状态的响应给前端
+    yield 'data: {}\n\n'.format(json.dumps(response))
+
+    # 插入数据库
+    insert_response_data(response)
+
+
+@app_run_edp_regression.route('/api/edp_regression_list/run_edp_regression', methods=['POST'])
+def run_edp_regression():
+    data = request.get_data()
+    datas = json.loads(data)
+    if not data:
+        return jsonify({"error": "Invalid request data"}), 400
+
+    # 设置响应头，指定内容类型为text/event-stream
+    headers = {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+    }
+
+    # 将生成器转换为响应对象
+    return Response(stream_with_context(execute_task(datas)), headers=headers), 200
 
 
 # 下载 edp_report.log
 @app_run_edp_regression.route('/api/download_edp_logs', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def download_log_file():
     log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                     '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
@@ -132,7 +230,6 @@ def download_log_file():
 
 # 下载 edp_report.xlsx
 @app_run_edp_regression.route('/api/download_edp_reports', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def download_report_file():
     report_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                        '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
@@ -145,7 +242,6 @@ def download_report_file():
 
 # 预览edp_report.log
 @app_run_edp_regression.route('/api/preview_edp_log', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def preview_edp_logs():
     log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                     '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
@@ -158,7 +254,6 @@ def preview_edp_logs():
 
 # 预览edp_report.xlsx
 @app_run_edp_regression.route('/api/preview_edp_report', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def preview_edp_report():
     xlsx_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
                      '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
@@ -171,7 +266,6 @@ def preview_edp_report():
 
 # 在线编辑case
 @app_run_edp_regression.route('/api/update_edp_testcases', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
 def update_edp_testcases():
     data = request.get_json()  # 获取请求中的json数据
 
@@ -207,7 +301,6 @@ def update_config(section, key, value):
 
 # 编辑配置文件
 @app_run_edp_regression.route('/api/update_edp_config', methods=['POST'])
-@swag_from('../swagger_doc.yaml')
 def update_edp_config():
     # section = request.form.get('section')
     key = request.form.get('key')
@@ -220,7 +313,6 @@ def update_edp_config():
 
 # 获取edp_regression运行历史列表
 @app_run_edp_regression.route('/api/edp_regression_list', methods=['GET'])
-@swag_from('../swagger_doc.yaml')
 def edp_regression_list():
     try:
         connection = global_connection_pool.connection()
