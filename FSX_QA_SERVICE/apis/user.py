@@ -88,7 +88,32 @@ def search_user():
         elif "name" in data and data["name"] == '':
             sql = ""
         else:
-            return jsonify({"error": "Please enter the user's name"}), 404
+            # 如果没有传参，则返回所有isDelete = 0 的数据
+            try:
+                # 统计数据总数
+                cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.`UsersRecord` '
+                               'WHERE `isDelete` = 0 ')
+                total_count = cursor.fetchone()
+                # 查询数据
+                cursor.execute("SELECT * FROM `qa_admin`.UsersRecord WHERE `isDelete` = 0 ")
+                search_result = cursor.fetchall()
+                if search_result:
+                    data = [process_row(row) for row in search_result]
+                    response = {
+                        "total_count": total_count,
+                        "data": data
+                    }
+                    return jsonify(response), 200
+
+                else:
+                    return jsonify({'message': 'Data does not exist'})
+            except pymysql.Error as e:
+                return jsonify({'message': 'Search error', 'error': str(e)})
+
+            finally:
+                cursor.close()
+                connection.close()
+
         sql += ' ORDER BY `id` DESC;'
         try:
             # 统计数据总数
