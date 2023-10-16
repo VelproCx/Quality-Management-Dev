@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 from flask import Flask
+import asyncio
 
 from apis.run_edp_regression import app_run_edp_regression
 from apis.Application import app_application
