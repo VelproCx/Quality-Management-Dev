@@ -33,12 +33,12 @@ def edp_full_stock_list():
     cursor = connection.cursor()
     try:
         # 统计数据总数
-        count_sql = "SELECT COUNT(*) as total_count FROM `qa_admin`.performance WHERE `type` = 1;"
+        count_sql = "SELECT COUNT(*) as total_count FROM `qa_admin`.FullStockRecord WHERE `type` = 1;"
         cursor.execute(count_sql)
         total_count = cursor.fetchone()["total_count"]
 
         # 查询数据
-        sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.`fullstock` WHERE `type` = 1;"
+        sql = "SELECT `start_date`, `status`, `createUser` FROM `qa_admin`.`FullStockRecord` WHERE `type` = 1;"
         cursor.execute(sql)
         rows = cursor.fetchall()
         data = [process_row(row) for row in rows]
