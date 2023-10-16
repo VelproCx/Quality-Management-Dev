@@ -30,8 +30,13 @@ generation_path = os.path.join(Parent_path, "file_generation.py")
 # 获取data_comparsion
 data_comparison_path = os.path.join(Parent_path, "data_comparison.py")
 
+# 获取当前日期
+current_date = datetime.now().strftime("%Y-%m-%d")
+report_filename = f"edp_report_{current_date}.xlsx"
+log_filename = f"edp_report_{current_date}.log"
+
 # log
-setup_logger('logfix', 'edp_fix_client/initiator/edp_regression_test/logs/edp_report.log')
+setup_logger('logfix', 'edp_fix_client/initiator/edp_regression_test/logs/' + log_filename)
 logfix = logging.getLogger('logfix')
 
 
@@ -99,11 +104,11 @@ class Application(fix.Application):
             else:
                 errorCode_list.append(" ")
 
-        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', ordstatus_list, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, ordstatus_list, 2,
                            'J')
-        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', errorCode_list, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, errorCode_list, 2,
                            'K')
-        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', self.Result, 2,
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, self.Result, 2,
                            'L')
         return
 
@@ -393,29 +398,29 @@ class Application(fix.Application):
     # 判断log文件中是否存在 Market Price is not matching
     def logsCheck(self):
         response = ['ps: 若列表存在failed数据，请查看report.log文件']
-        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 2, 'M')
-        with open('edp_fix_client/initiator/edp_regression_test/logs/edp_report.log', 'r') as f:
+        self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, response, 2, 'M')
+        with open('edp_fix_client/initiator/edp_regression_test/logs/' + log_filename, 'r') as f:
             content = f.read()
 
         if 'FixMsg Error' in content:
             logfix.info('FixMsg is NG')
             response = ['FixMsg is NG']
-            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, response, 4,
                                'M')
         else:
             logfix.info('FixMsg is OK')
             response = ['FixMsg is OK']
-            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 4,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, response, 4,
                                'M')
         if 'Order execType error' in content:
             logfix.info("execType is NG")
             response = ['execType is NG']
-            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, response, 5,
                                "M")
         else:
             logfix.info("execType is OK")
             response = ['execType is OK']
-            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx', response, 5,
+            self.writeResExcel('edp_fix_client/initiator/edp_regression_test/report/' + report_filename, response, 5,
                                "M")
 
     def writeResExcel(self, filename, data, row, column):
@@ -519,12 +524,13 @@ class Application(fix.Application):
         # 导入具有完整文件路径的模块
         module1 = SourceFileLoader(module_name, module_path).load_module()
         generation = module1.generation
+
         """Run"""
         # EDP_Functional_Test_Matrix.json
 
         with open('edp_fix_client/testcases/test.json', 'r') as f_json:
             generation('edp_fix_client/testcases/test.json',
-                       'edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx')
+                       'edp_fix_client/initiator/edp_regression_test/report/' + report_filename)
             case_data_list = json.load(f_json)
             time.sleep(2)
             # 循环所有用例，并把每条用例放入runTestCase方法中，
