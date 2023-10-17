@@ -3,10 +3,13 @@ import json
 import os
 import platform
 import signal
+import tempfile
 import time
 import random
+import traceback
 
-from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context
+import mysql.connector
+from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context, make_response
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
@@ -69,7 +72,6 @@ def insert_response_data(response):
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
-
     output = response.get('output', '')  # 获取response中的output字段，如果不存在则默认为空字符串
 
     # 使用二进制读取log文件
@@ -84,15 +86,33 @@ def insert_response_data(response):
     if len(output) > 255:
         output = output[:255]  # 截取前 255 个字符
 
-    # 构建插入SQL语句
-    sql = "INSERT INTO RegressionRecord (taskId, status, type, createUser, CreateTime, log_file, excel_file, output) " \
-          "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
-    values = (taskId, response['status'], int(response['type']), response['createUser'], response['CreateTime'],
-              log_file, excel_file, output)
+    # 构建查询语句,查询是否存在相同的taskId
+    query_sql = "SELECT COUNT(*) FROM RegressionRecord WHERE taskId = %s"
+    cursor.execute(query_sql, (response["taskId"],))
+    result = cursor.fetchone()
+    row_count = result["COUNT(*)"]
+
     try:
-        # 执行插入操作
-        cursor.execute(sql, values)
-        connection.commit()
+        if row_count > 0:
+            # 如果存在相同的taskId，则执行更新,更新任务状态,文件
+            update_sql = "UPDATE RegressionRecord SET status = %s, " \
+                         "log_file = %s, excel_file = %s, output = %s, report_filename = %s, log_filename = %s WHERE taskId = %s"
+            update_values = (
+                response['status'], log_file, excel_file, output, report_filename, log_filename, response['taskId'])
+            cursor.execute(update_sql, update_values)
+            connection.commit()
+        else:
+            # 构建插入SQL语句
+            insert_sql = "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, log_file, excel_file, output, report_filename, log_filename)" \
+                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            insert_values = (
+                response['taskId'], response['status'], int(response['type']), response['CreateUser'],
+                response['CreateTime'], log_file, excel_file, output, report_filename, log_filename)
+
+            # 执行插入操作
+            cursor.execute(insert_sql, insert_values)
+            connection.commit()
+
     except Exception as e:
         print("Error while inserting into the database:", e)
 
@@ -109,6 +129,7 @@ def execute_task(datas):
     retcode = None  # 初始化 retcode
     stderr = ""
     output = None
+    taskId = get_task_id()
     log = None
     status = "progressing"
     create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
@@ -126,11 +147,15 @@ def execute_task(datas):
 
         # 在等待时发送中间状态的响应给前端
         response = {
-            'createUser': creator,
+            'taskId': taskId,
+            'CreateUser': creator,
             'status': status,
-            'CreateTime': create_time
+            'CreateTime': create_time,
+            'type': 1
         }
         yield 'data: {}\n\n'.format(json.dumps(response))
+        # 插入数据库
+        insert_response_data(response)
 
         while cnt < maxcnt:
             try:
@@ -171,7 +196,8 @@ def execute_task(datas):
     if retcode == 0:
         status = "completed"
         response = {
-            'createUser': creator,
+            'taskId': taskId,
+            'CreateUser': creator,
             'CreateTime': create_time,
             'retcode': retcode,
             'stderr': stderr,
@@ -182,7 +208,8 @@ def execute_task(datas):
     else:
         status = "error"
         response = {
-            'createUser': creator,
+            'taskId': taskId,
+            'CreateUser': creator,
             'CreateTime': create_time,
             'retcode': retcode,
             'stderr': stderr,
@@ -193,7 +220,6 @@ def execute_task(datas):
 
     # 最后发送最终状态的响应给前端
     yield 'data: {}\n\n'.format(json.dumps(response))
-
     # 插入数据库
     insert_response_data(response)
 
@@ -216,52 +242,161 @@ def run_edp_regression():
     return Response(stream_with_context(execute_task(datas)), headers=headers), 200
 
 
-# 下载 edp_report.log
-@app_run_edp_regression.route('/api/download_edp_logs', methods=['GET'])
-def download_log_file():
-    log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
-                    '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
+# 获取 edp_regression 运行列表
+@app_run_edp_regression.route('/api/edp_regression_list', methods=['GET'])
+def edp_regression_list():
+    try:
+        connection = global_connection_pool.connection()
+        cursor = connection.cursor()
 
-    if os.path.exists(log_file_path):
-        return send_file(log_file_path, as_attachment=True), 200
-    else:
-        return jsonify({'error': 'The file is not found'}), 404
+        # 获取前端传回的参数
+        source = request.args.get('Source')
+        status = request.args.get('status')
+        start_time = request.args.get('startTime')
+        end_time = request.args.get('endTime')
+
+        # 构建查询语句和参数
+        sql = "SELECT taskId, status, CreateUser, CreateTime, output " \
+              "FROM qa_admin.RegressionRecord WHERE type = 1"
+
+        params = []
+        if source:
+            sql += " AND CreateUser = %s"
+            params.append(source)
+        if status:
+            sql += " AND status = %s"
+            params.append(status)
+        if start_time and end_time:
+            # 假设前端传回的时间字符串格式为 "%Y-%m-%d %H:%M:%S"
+            start_time = datetime.strptime(start_time, "%Y-%m-%d")
+            end_time = (datetime.strptime(end_time, "%Y-%m-%d")) + timedelta(days=1)
+            sql += " AND CreateTime >= %s AND CreateTime < %s"
+            params.extend([start_time, end_time])
+
+        sql += " ORDER BY CreateTime DESC"
+
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+
+        # 构建响应数据
+        data = []
+        for row in rows:
+            # 将 datetime 对象 row['CreateTime'] 格式化为 %Y-%m-%d %H:%M:%S 的时间字符串
+            formatted_create_time = row['CreateTime'].strftime("%Y-%m-%d %H:%M:%S")
+            data.append(
+                {
+                    'taskId': row['taskId'],
+                    'CreateTime': formatted_create_time,
+                    'CreateUser': row['CreateUser'],
+                    'status': row['status'],
+                    'output': row['output']
+                }
+            )
+        response = {
+            'data': data
+        }
+        return jsonify(response), 200
+
+    except Exception as e:
+        error_message = str(e)
+        traceback_details = traceback.format_exc()  # 抛出异常详细描述
+        error_response = {
+            'error': error_message,
+            'traceback': traceback_details
+        }
+        return jsonify(error_response), 500
+
+    finally:
+        # 关闭数据库
+        cursor.close()
+        connection.close()
+
+
+# 下载 edp_report.log
+@app_run_edp_regression.route('/api/edp_regression_list/download_edp_log/<task_id>', methods=['GET'])
+def download_log_file(task_id):
+    if not task_id:
+        return 'task_id is missing', 400
+
+    try:
+        # 连接数据库
+        connection = global_connection_pool.connection()
+        cursor = connection.cursor()
+
+        # 查询指定任务的 log_file
+        query = "SELECT log_file FROM qa_admin.RegressionRecord WHERE taskId = %s"
+        cursor.execute(query, (task_id,))
+        result = cursor.fetchone()
+
+        if result is None:
+            return 'File not found', 404
+
+        log_file_content = result['log_file']
+
+        # 保存日志内容到临时文件
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_file.write(log_file_content)
+        temp_file.close()
+
+        # 创建响应对象
+        response = make_response(
+            send_file(temp_file.name, mimetype='text/plain', as_attachment=True, download_name='log_file.log'))
+
+        # 设置响应头，指定文件名
+        response.headers['Content-Disposition'] = f'attachment; filename={log_filename}'
+
+        # 返回响应
+        return response
+
+    except mysql.connector.Error as e:
+        return str(e), 500
+
+    finally:
+        cursor.close()
+        connection.close()
 
 
 # 下载 edp_report.xlsx
-@app_run_edp_regression.route('/api/download_edp_reports', methods=['GET'])
-def download_report_file():
-    report_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
-                       '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
+@app_run_edp_regression.route('/api/edp_regression_list/download_edp_report/<task_id>', methods=['GET'])
+def download_report_file(task_id):
+    if not task_id:
+        return 'task_id is missing', 400
+    try:
+        # 连接数据库
+        connection = global_connection_pool.connection()
+        cursor = connection.cursor()
 
-    if os.path.exists(report_file_path):
-        return send_file(report_file_path, as_attachment=True), 200
-    else:
-        return jsonify({'error': 'The file is not found'}), 404
+        # 查询指定任务的 log_file
+        query = "SELECT excel_file FROM qa_admin.RegressionRecord WHERE taskId = %s"
+        cursor.execute(query, (task_id,))
+        result = cursor.fetchone()
 
+        if result is None:
+            return 'File not found', 404
 
-# 预览edp_report.log
-@app_run_edp_regression.route('/api/preview_edp_log', methods=['GET'])
-def preview_edp_logs():
-    log_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
-                    '/edp_fix_client/initiator/edp_regression_test/logs/edp_report.log'
+        excel_file_content = result['excel_file']
 
-    if os.path.exists(log_file_path):
-        return send_file(log_file_path), 200
-    else:
-        return jsonify({'error': 'The file is not found'}), 404
+        # 保存日志内容到临时文件
+        excel_temp_file = tempfile.NamedTemporaryFile(delete=False)
+        excel_temp_file.write(excel_file_content)
+        excel_temp_file.close()
 
+        # 创建响应对象
+        response = make_response(
+            send_file(excel_temp_file.name, mimetype='text/plain', as_attachment=True, download_name='report.xlsx'))
 
-# 预览edp_report.xlsx
-@app_run_edp_regression.route('/api/preview_edp_report', methods=['GET'])
-def preview_edp_report():
-    xlsx_file_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + \
-                     '/edp_fix_client/initiator/edp_regression_test/report/edp_report.xlsx'
-    if os.path.exists(xlsx_file_path):
-        return send_file(xlsx_file_path, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                         as_attachment=False), 200
-    else:
-        return jsonify({'error': 'The file is not found'}), 404
+        # 设置响应头，指定文件名
+        response.headers['Content-Disposition'] = f'attachment; filename={report_filename}'
+
+        # 返回响应
+        return response
+
+    except mysql.connector.Error as e:
+        return str(e), 500
+
+    finally:
+        cursor.close()
+        connection.close()
 
 
 # 在线编辑case
@@ -281,72 +416,3 @@ def update_edp_testcases():
         json.dump(json_data, file, indent=4)
 
     return jsonify({'message': 'JSON file updated and saved successfully'}), 200
-
-
-def update_config(section, key, value):
-    config = ConfigParser(allow_no_value=True)
-    config.optionxform = str  # 保持键的大小写
-
-    # 读取原始文件的内容
-    with open(config_file, 'r') as file:
-        config.read_file(file)
-
-    # 修改配置
-    config.set(section, key, value)
-
-    # 保存修改后的配置
-    with open(config_file, 'w') as file:
-        config.write(file, space_around_delimiters=False)
-
-
-# 编辑配置文件
-@app_run_edp_regression.route('/api/update_edp_config', methods=['POST'])
-def update_edp_config():
-    # section = request.form.get('section')
-    key = request.form.get('key')
-    value = request.form.get('value')
-
-    update_config('SESSION', key, value)
-
-    return jsonify({'message': f' Key "{key}" updated successfully'}), 200
-
-
-# 获取edp_regression运行历史列表
-@app_run_edp_regression.route('/api/edp_regression_list', methods=['GET'])
-def edp_regression_list():
-    try:
-        connection = global_connection_pool.connection()
-        cursor = connection.cursor()
-
-        sql = "SELECT title, status, createUser, execution_time, start_date, end_date FROM qa_admin.regression where type = 1;"
-        cursor.execute(sql)
-        rows = cursor.fetchall()
-
-        # 构建响应数据
-        data = []
-        for row in rows:
-            data.append(
-                {
-                    'title': row['title'],
-                    'status': row['status'],
-                    'createUser': row['createUser'],
-                    'execution_time': str(row['execution_time']),
-                    'start_date': row['start_date'].strftime("%Y-%m-%d %H:%M:%S"),
-                    'end_date': row['end_date'].strftime("%Y-%m-%d %H:%M:%S")
-                }
-            )
-        response = {
-            'data': data
-        }
-        return jsonify(response), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-    finally:
-        # 关闭数据库
-        cursor.close()
-        connection.close()
-
-# if __name__ == '__main__':
-#     app.run()

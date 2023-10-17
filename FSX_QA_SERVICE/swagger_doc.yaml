@@ -114,140 +114,213 @@ paths:
           description: User not found
         500:
           description: Internal Server Error
-  /api/run_edp_regression:
+  /api/edp_regression_list/run_edp_regression:
     post:
       tags:
         - EDP Regression
-      summary: Run EDP Regression Test
-      description: Runs the EDP regression test.
-      consumes:
-        - application/json
-      produces:
-        - application/json
+      summary: Run EDP regression
+      responses:
+        '200':
+          description: Success response
+        '400':
+          description: Invalid request data
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                # Define your request body properties here
+                data:
+                  type: string
+      x-codeSamples:
+        - lang: Python
+          source: |
+            import requests
+            import json
+
+            url = 'http://your-api-endpoint/api/edp_regression_list/run_edp_regression'
+            data = {
+              "data": "your_request_data"
+            }
+            headers = {
+              'Content-Type': 'application/json'
+            }
+            response = requests.post(url, data=json.dumps(data), headers=headers)
+            print(response.json())
+  /api/edp_regression_list:
+    get:
+      tags:
+        - EDP Regression
+      summary: Get EDP regression list
       parameters:
-        - name: "title"
-          in: "formData"
-          description: "Title of the regression"
-          required: true
-          type: "string"
-        - name: "creator"
-          in: "formData"
-          description: "Creator of the regression"
-          required: true
-          type: "string"
-      responses:
-        '200':
-          description: EDP regression test executed successfully.
+        - in: query
+          name: Source
           schema:
-            type: object
-            properties:
-              result:
-                type: string
-              output:
-                type: string
-              start_time:
-                type: string
-                format: date-time
-              execution_time:
-                type: string
-              end_time:
-                type: string
-                format: date-time
-              type:
-                type: integer
-  /api/download_edp_logs:
+            type: string
+          description: Filter by source
+        - in: query
+          name: status
+          schema:
+            type: string
+          description: Filter by status
+        - in: query
+          name: startTime
+          schema:
+            type: string
+            format: date
+          description: Start time of the range
+        - in: query
+          name: endTime
+          schema:
+            type: string
+            format: date
+          description: End time of the range
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        taskId:
+                          type: string
+                        CreateTime:
+                          type: string
+                          format: date-time
+                        CreateUser:
+                          type: string
+                        status:
+                          type: string
+                        output:
+                          type: string
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  traceback:
+                    type: string
+      x-codeSamples:
+        - lang: Python
+          source: |
+            import requests
+
+            url = 'http://your-api-endpoint/api/edp_regression_list'
+            params = {
+              "Source": "your_source",
+              "status": "your_status",
+              "startTime": "yyyy-mm-dd",
+              "endTime": "yyyy-mm-dd"
+            }
+            response = requests.get(url, params=params)
+            print(response.json())
+  /api/edp_regression_list/download_log_file/{task_id}:
     get:
       tags:
         - EDP Regression
-      summary: Download EDP Logs
-      description: Downloads the EDP log file.
+      summary: Download log file
+      parameters:
+        - in: path
+          name: task_id
+          schema:
+            type: string
+          required: true
+          description: ID of the task
       responses:
         '200':
-          description: EDP log file downloaded successfully
-  /api/download_edp_reports:
+          description: Success response
+        '400':
+          description: Bad request
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: File not found
+        '500':
+          description: Internal server error
+  /api/edp_regression_list/download_edp_report/{task_id}:
     get:
       tags:
         - EDP Regression
-      summary: Download EDP Reports
-      description: Downloads the EDP report file.
+      summary: Download EDP report file
+      parameters:
+        - in: path
+          name: task_id
+          schema:
+            type: string
+          required: true
       responses:
         '200':
-          description: EDP report file downloaded successfully
-  /api/preview_edp_log:
-    get:
-      tags:
-        - EDP Regression
-      summary: Preview EDP Log
-      description: Previews the EDP log file.
-      responses:
-        '200':
-          description: EDP log previewed successfully
-  /api/preview_edp_report:
-    get:
-      tags:
-        - EDP Regression
-      summary: Preview EDP Report
-      description: Previews the EDP report file.
-      responses:
-        '200':
-          description: EDP report previewed successfully
-  /api/update_edp_config:
+          description: OK
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad Request
+          content:
+            text/plain:
+              schema:
+                type: string
+        '404':
+          description: Not Found
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/update_edp_testcases:
     post:
       tags:
         - EDP Regression
-      summary: Update EDP Config
-      description: Updates the EDP config.
-      consumes:
-        - application/x-www-form-urlencoded
-      parameters:
-        - name: section
-          in: formData
-          type: string
-          required: true
-          description: The section to update in the EDP config.
-        - name: key
-          in: formData
-          type: string
-          required: true
-          description: The key to update in the EDP config.
-        - name: value
-          in: formData
-          type: string
-          required: true
-          description: The value to update in the EDP config.
+      summary: Update EDP test cases
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         '200':
-          description: EDP config updated successfully.
-  /edp_regression_list:
-    get:
-      tags:
-        - "EDP Regression"
-      summary: "Get EDP regression list"
-      responses:
-        200:
-          description: "OK"
-          schema:
-            type: "object"
-            properties:
-              data:
-                type: "array"
-                items:
-                  type: "object"
-                  properties:
-                    title:
-                      type: "string"
-                    status:
-                      type: "string"
-                    createUser:
-                      type: "string"
-                    execution_time:
-                      type: "string"
-                    start_date:
-                      type: "string"
-                      format: "date-time"
-                    end_date:
-                      type: "string"
-                      format: "date-time"
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+      x-codeSamples:
+        - lang: Python
+          source: |
+            import requests
+            import json
+
+            url = 'http://your-api-endpoint/api/update_edp_testcases'
+            data = {
+              "key1": "value1",
+              "key2": "value2"
+            }
+            response = requests.post(url, json=data)
+            print(response.json())
   /api/edp_performance_list:
     get:
       tags:
