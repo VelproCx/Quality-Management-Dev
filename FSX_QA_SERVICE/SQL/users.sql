@@ -12,7 +12,7 @@ CREATE TABLE `UsersRecord` (
   `createdTime` datetime COMMENT '账号创建时间',
   `updateTime` datetime COMMENT '账号修改标志',
   `isDelete` BOOL DEFAULT FALSE COMMENT '软删除标志',
-  `token` char(1000) DEFAULT NULL COMMENT '令牌',
+  `token` varchar(1000) DEFAULT NULL COMMENT '令牌',
 
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户管理';

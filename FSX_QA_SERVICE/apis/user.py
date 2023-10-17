@@ -5,8 +5,8 @@ from datetime import datetime
 from flask import request, jsonify
 from flask_cors import CORS
 from flask import Blueprint, Flask
-from FSX_QA_SERVICE.apis.Application import global_connection_pool
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from FSX_QA_SERVICE.apis.Application import global_connection_pool, process_row
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'your_secret_key'
@@ -16,33 +16,21 @@ app_user = Blueprint("app_user", __name__)
 # 允许跨域请求
 CORS(app_user, supports_credentials=True)
 
-
-# 避免重复代码
-def process_row(row):
-    return {
-        "id": row["id"],
-        "name": row["name"],
-        "status": row["status"],
-        "email": row["email"],
-        "createdTime": row["createdTime"],
-        "isDelete": row["isDelete"],
-        "role": row["role"]
-    }
+# 用于存储已失效的令牌，可以存储在数据库或缓存中
+blacklisted_tokens = set()
 
 
-@app_user.route("/api/login", methods=['POST'])
+@app_user.route("/api/user/login", methods=['POST'])
 def login():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
     # 获取post请求body数据
-    data = request.get_data()
+    data = request.get_json()
     try:
-        # 将字符串转换成json
-        js_data = json.loads(data)
-        email = js_data['email']
-        password = js_data['password']
+        email = data['email']
+        password = data['password']
         if email == '' or password == '':
             return jsonify({'message': 'The account password cannot be empty'}), 404
         else:
@@ -51,7 +39,6 @@ def login():
             cursor.execute(sql, (email, password))
             # 获取查询结果
             result = cursor.fetchone()
-
             if result:
                 if result["isDelete"]:
                     return jsonify({'message': "User does not exist"})
@@ -62,12 +49,23 @@ def login():
                         user_datas = process_row(result)
                         identity = user_datas["id"]
                         # 在登录成功时生成token
-                        token = create_access_token(identity=identity)
-                        update_token_sql = "UPDATE qa_admin.UsersRecord SET token = '{}' " \
-                                           "WHERE id = {};".format(token, identity)
-                        cursor.execute(update_token_sql)
+                        token_value = create_access_token(identity=identity)
+                        # 拼接token
+                        token = "Bearer {}".format(token_value)
+                        # 拼接sql用户更新用户token
+                        update_token_sql = "UPDATE qa_admin.UsersRecord SET token = %s WHERE id = %s"
+                        # 执行sql并提交
+                        cursor.execute(update_token_sql, (token_value, identity))
                         connection.commit()
-                        return jsonify({'access_token': token}), 200
+                        # 拼接sql查询出最新的用户数据并前端返回
+                        sql = "SELECT * FROM `qa_admin`.UsersRecord WHERE id = %s"
+                        cursor.execute(sql, identity)
+                        userdata = cursor.fetchone()
+
+                        response = process_row(userdata)
+                        response = jsonify(response)
+                        response.headers['Authorization'] = token
+                        return response, 200
                     if result['status'] == 2:
                         return jsonify({'message': 'The user has been frozen. Please contact the administrator'}), 404
             else:
@@ -80,11 +78,38 @@ def login():
         # 关闭游标和连接
         cursor.close()
         connection.close()
-    # 验证成功，重定向到管理后台
-    # return redirect('/admin')
 
 
-@app_user.route("/api/user_list", methods=['GET'])
+@app_user.route("/api/user/logout", methods=['POST'])
+@jwt_required()
+def logout():
+    token = request.headers.get('Authorization')
+    if token:
+        current_user = get_jwt_identity()
+        # 将令牌加入黑名单
+        blacklisted_tokens.add(token)
+        return jsonify({'message': 'Logged out successfully'}), 200
+    else:
+        return jsonify({"error": "logout failed. Missing Authorization Header"}), 401
+
+
+@app_user.before_request
+def check_blacklist():
+    # 获取当前请求的端点（即路由）
+    endpoint = request.endpoint
+    # 忽略登录接口的检查
+    if endpoint == 'app_user.login':
+        return
+    token = request.headers.get('Authorization')
+    if token:
+        if token in blacklisted_tokens:
+            return jsonify({'message': 'Invalid token'}), 401
+    else:
+        return jsonify({'error': 'Invalid request data'}), 400
+
+
+@app_user.route("/api/user/user_list", methods=['GET'])
+# 用户列表+查询
 def search_user():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
@@ -157,7 +182,8 @@ def search_user():
         return jsonify({"Error": "Invalid file path"}), 400
 
 
-@app_user.route("/api/user_list/create-user", methods=['POST'])
+@app_user.route("/api/user/create-user", methods=['POST'])
+# 新增用户
 def create_user():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
@@ -207,7 +233,8 @@ def create_user():
         connection.close()
 
 
-@app_user.route("/api/user_list/delete-user", methods=['POST'])
+@app_user.route("/api/user/delete-user", methods=['POST'])
+# 删除用户（软删除）
 def delete_user():
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
@@ -239,7 +266,8 @@ def delete_user():
         return jsonify({"error": "User does not exist"})
 
 
-@app_user.route("/api/user_list/user-details", methods=["GET"])
+@app_user.route("/api/user/info", methods=["GET"])
+# 用户详情
 def user_details():
     data = request.args.to_dict()
     if data is not None and data != "":
@@ -262,11 +290,14 @@ def user_details():
             finally:
                 cursor.close()
                 connection.close()
+        else:
+            return jsonify({"error": "The user id is not in the data"})
     else:
         return jsonify({"error": "The received user id is empty"})
 
 
-@app_user.route("/api/user_list/update-user", methods=["POST"])
+@app_user.route("/api/user/update-user", methods=["POST"])
+# 修改用户（只支持修改用户名字和邮箱）
 def update_user():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
