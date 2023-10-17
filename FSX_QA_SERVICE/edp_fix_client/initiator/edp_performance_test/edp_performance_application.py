@@ -14,6 +14,7 @@ import random
 
 __SOH__ = chr(1)
 
+
 class Application(fix.Application):
     execID = 0
 
@@ -173,15 +174,14 @@ class Application(fix.Application):
                     time.sleep(0.0025)
 
 
-
-    def read_config(self, Sender, Target, Host, Port):
+    def read_config(self, sender, target, host, port):
         # 读取并修改配置文件
         config = configparser.ConfigParser()
         config.read('edp_fix_client/initiator/edp_performance_test/edp_performance_client.cfg')
-        config.set('SESSION', 'SenderCompID', Sender)
-        config.set('SESSION', 'TargetCompID', Target)
-        config.set('SESSION', 'SocketConnectHost', Host)
-        config.set('SESSION', 'SocketConnectPort', Port)
+        config.set('SESSION', 'SenderCompID', sender)
+        config.set('SESSION', 'TargetCompID', target)
+        config.set('SESSION', 'SocketConnectHost', host)
+        config.set('SESSION', 'SocketConnectPort', port)
 
         with open('edp_fix_client/initiator/edp_performance_test/edp_performance_client.cfg', 'w') as configfile:
             config.write(configfile)
@@ -197,24 +197,27 @@ def main():
         parser.add_argument('--Target', default='FSX_SIT_EDP', help='choose Target to use for test')
         parser.add_argument('--Host', default='54.250.107.1', help='choose Host to use for test')
         parser.add_argument('--Port', default='5007', help='choose Port to use for test')
+        parser.add_argument('--TaskId', default='1', help='choose Port to use for test')
 
         args = parser.parse_args()  # 解析参数
         account = args.account
-        Sender = args.Sender
-        Target = args.Target
-        Host = args.Host
-        Port = args.Port
+        sender = args.Sender
+        target = args.Target
+        host = args.Host
+        port = args.Port
+        taskid = args.TaskId
 
         # report
-        setup_logger('logfix', 'edp_fix_client/initiator/edp_performance_test/report/{}_Report.log'.format(account))
+        setup_logger('logfix',
+                     'edp_fix_client/initiator/edp_performance_test/report/{}_{}_Report.log'.format(taskid, account))
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
-        cfg.Sender = Sender
-        cfg.Target = Target
-        cfg.Host = Host
-        cfg.Port = Port
-        cfg.read_config(Sender, Target, Host, Port)
+        cfg.Sender = sender
+        cfg.Target = target
+        cfg.Host = host
+        cfg.Port = port
+        cfg.read_config(sender, target, host, port)
 
         settings = fix.SessionSettings("edp_fix_client/initiator/edp_performance_test/edp_performance_client.cfg")
         application = Application()
