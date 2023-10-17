@@ -1,11 +1,22 @@
 # -*- coding:utf-8 -*-
 # Application.py
-from flask import Blueprint
 from dbutils.pooled_db import PooledDB
-from flask import request
 import pymysql.cursors
 import json
 from FSX_QA_SERVICE.config import Mysql_configs
+import pymysql
+from datetime import datetime
+from flask import request, jsonify
+from flask_cors import CORS
+from flask import Blueprint, Flask
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+
+app = Flask(__name__)
+app.config['JWT_SECRET_KEY'] = 'your_secret_key'
+jwt = JWTManager(app)
+
+app_application = Blueprint('app_application', __name__)
+
 
 # 使用数据库连接池的方式链接数据库
 pool = PooledDB(
@@ -24,7 +35,32 @@ pool = PooledDB(
 # 设置全局变量，用于共享数据库连接池
 global_connection_pool = pool
 
-app_application = Blueprint('app_application', __name__)
+
+def process_row(row):
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "status": row["status"],
+        "email": row["email"],
+        "createdTime": row["createdTime"],
+        "isDelete": row["isDelete"],
+        "role": row["role"]
+    }
+
+
+def get_user_by_email(email):
+    connection = global_connection_pool.connection()
+    cursor = connection()
+    try:
+        cursor.execute("SELECT * FROM qa_admin.UsersRecord WHERE `email` = '{}';".format(email))
+        result = cursor.fetchone()
+        data = process_row(result)
+        return data
+    except pymysql.Error as e:
+        return jsonify({"error": str(e)})
+    finally:
+        cursor.close()
+        connection.close()
 
 # @app_application.route("/api/application/search", methods=['POST'])
 # def searchBykey():

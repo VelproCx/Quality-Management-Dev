@@ -4,8 +4,13 @@ import pymysql
 from datetime import datetime
 from flask import request, jsonify
 from flask_cors import CORS
-from flask import Blueprint
+from flask import Blueprint, Flask
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+
+app = Flask(__name__)
+app.config['JWT_SECRET_KEY'] = 'your_secret_key'
+jwt = JWTManager(app)
 
 app_user = Blueprint("app_user", __name__)
 # 允许跨域请求
@@ -54,7 +59,15 @@ def login():
                     if result['status'] == 0:
                         return jsonify({'message': 'User not activated. Please contact the administrator'}), 404
                     if result['status'] == 1:
-                        return jsonify({'message': 'login succeed Wellcome to QA_admin'}), 200
+                        user_datas = process_row(result)
+                        identity = user_datas["id"]
+                        # 在登录成功时生成token
+                        token = create_access_token(identity=identity)
+                        update_token_sql = "UPDATE qa_admin.UsersRecord SET token = '{}' " \
+                                           "WHERE id = {};".format(token, identity)
+                        cursor.execute(update_token_sql)
+                        connection.commit()
+                        return jsonify({'access_token': token}), 200
                     if result['status'] == 2:
                         return jsonify({'message': 'The user has been frozen. Please contact the administrator'}), 404
             else:
@@ -131,7 +144,6 @@ def search_user():
                     "data": data
                 }
                 return jsonify(response), 200
-
             else:
                 return jsonify({'message': 'Data does not exist'})
 
@@ -246,12 +258,12 @@ def user_details():
                     }
                     return jsonify(response), 200
             except pymysql.Error as e:
-                return jsonify({'message': 'Delete user fail', 'error': str(e)})
+                return jsonify({'message': 'Description Failed to view user details', 'error': str(e)})
             finally:
                 cursor.close()
                 connection.close()
     else:
-        return jsonify({"error": ""})
+        return jsonify({"error": "The received user id is empty"})
 
 
 @app_user.route("/api/user_list/update-user", methods=["POST"])
