@@ -8,10 +8,9 @@ import time
 import random
 import tempfile
 from flask_cors import CORS
-from flasgger import swag_from
 from datetime import datetime
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
-from flask import send_file, Response, request, jsonify, Blueprint, make_response
+from flask import send_file, Response, request, jsonify, Blueprint, make_response, stream_with_context
 
 app_run_edp_full_stock = Blueprint("run_edp_full_stock", __name__)
 CORS(app_run_edp_full_stock, supports_credentials=True)
@@ -23,7 +22,8 @@ def process_row(row):
     return {
         "createdTime": row["start_date"],
         "source": row["createUser"],
-        "status": row["status"]
+        "status": row["status"],
+        "taskId": row["taskId"]
     }
 
 
@@ -55,4 +55,3 @@ def edp_full_stock_list():
     finally:
         cursor.close()
         connection.close()
-
