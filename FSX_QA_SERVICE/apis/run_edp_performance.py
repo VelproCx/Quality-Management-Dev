@@ -57,7 +57,7 @@ def tst(data):
     commands = []
     # 循环从请求体中将shell命令读取出来
     for command in datas["commands"]:
-        shell = command["value"] + " &\n" + "sleep 1\n"
+        shell = command["value"] + " --TaskId {}".format(task_id) + " &\n" + "sleep 1\n"
         commands.append(shell)
     try:
         # 格式化数组中的shell命令
@@ -136,11 +136,10 @@ def insert_performance_record(task_id, creator, status):
         connection.commit()
     except Exception as e:
         print("Error while inserting into the database:", e)
-        raise
+        return jsonify({"error": str(e)})
     finally:
         cursor.close()
         connection.close()
-    print("执行insert_performance_record（）成功")
 
 
 def update_performance_record(task_id, status):
@@ -160,67 +159,12 @@ def update_performance_record(task_id, status):
     finally:
         cursor.close()
         connection.close()
-    print("执行update_performance_record（）成功")
     response = {
         'taskId': task_id,
         'status': status,
         'type': 1
     }
     return response
-
-
-async def run_script(task_id, creator, commands):
-    # 创建一个空数组用于存放shell命令
-    shell_commands = []
-    # 循环从请求体中将shell命令读取出来
-    for command in commands:
-        shell = command["value"] + " &\n" + "sleep 1\n"
-        shell_commands.append(shell)
-    try:
-        # 格式化数组中的shell命令
-        shell_commands = ''.join(shell_commands)
-        # 将shell_commands用Popen方法执行
-        process = subprocess.Popen(shell_commands, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        process.wait()
-        result = "completed"
-        statuses = []
-        outputs = []
-        status = process.returncode
-        outputs_stdout, outputs_stderr = process.communicate()
-
-        statuses.append(status)
-        outputs.append((outputs_stdout, outputs_stderr))
-
-        # 更新PerformanceRecord记录状态
-        update_performance_record(task_id, result)
-
-        response = {
-            'creator': creator,
-            'taskId': task_id,
-            'status': result,
-            'type': 1
-        }
-        return response, 200
-
-    except subprocess.CalledProcessError as e:
-        output = e.stderr.strip()
-        result = "error"
-        response = {
-            "result": result,
-            "error": str(e),
-            "output": output
-        }
-        return response, 500
-
-    except subprocess.TimeoutExpired:
-        output = "Execution time out"
-        result = "error"
-        response = {
-            "result": result,
-            "error": "TimeoutExpired",
-            "output": output
-        }
-        return response, 500
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/run_edp_performance', methods=['POST'])
@@ -230,24 +174,6 @@ def run_edp_performance():
     # 判空处理
     if not data or data == b'':
         return jsonify({"error": "Invalid request data"}), 400
-        # 数据转换
-    # datas = json.loads(data)
-    # print("获取数据成功")
-    #
-    # task_id = get_task_id()
-    # creator = datas["source"]
-    # commands = datas["commands"]
-    # print("准备执行数据插入")
-    # # 先将压力测试任务创建成功返回给接口，然后继续等待压力测试脚本执行结果
-    # insert_performance_record(task_id, creator, "progressing")
-    # print("准备开始执行异步函数")
-    # # 使用asyncio创建事件循环并执行异步脚本函数
-    # loop = asyncio.new_event_loop()
-    # asyncio.set_event_loop(loop)
-    # result = loop.run_until_complete(run_script(task_id, creator, commands))
-    # loop.close()
-    # return jsonify(result)
-        # 设置响应头，指定内容类型为text/event-stream
     headers = {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -260,6 +186,7 @@ def run_edp_performance():
 
 @app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['GET'])
 def download_performance_log_file():
+    # 唯一参数时taskid，edp_performance_client脚本中需要将日志文件绑定taskid，然后再将其下载
     data = request.args.to_dict()
     # 判断传参是否为空
     if data is None or data == '':
@@ -267,16 +194,16 @@ def download_performance_log_file():
 
     # 创建一个空数组用于存放所有日志的路径
     file_paths = []
-    accounts = data["account"]
-    # 循环从参数中读取account，并拼接日志地址
-    for account in accounts:
-        log_path = "edp_fix_client/initiator/edp_performance_test/report/{}_Report.log".format(account)
-        # 如果日志不存在，抛出错误
-        if not os.path.exists(log_path):
-            return jsonify({"Error": "The file is not found"}), 404
-
-        file_paths.append(log_path)
-
+    taskid = data["taskId"]
+    # 日志地址
+    log_path = "edp_fix_client/initiator/edp_performance_test/report"
+    # 遍历日志目录下的所有文件
+    for filename in os.listdir(log_path):
+        if taskid in filename:
+            log_filepath = os.path.join(log_path, filename)
+            file_paths.append(log_filepath)
+    if not file_paths:
+        return jsonify({"Error": "The file is not found"}), 404
     # 创建临时目录用于存放压缩文件
     temp_dir = tempfile.mkdtemp()
 
