@@ -44,18 +44,19 @@ def process_row(row):
         "email": row["email"],
         "createdTime": row["createdTime"],
         "isDelete": row["isDelete"],
-        "role": row["role"]
+        "role": row["role"],
+        "Authorization": "Bearer " + row["token"]
     }
 
 
-def get_user_by_email(email):
+def get_token_by_email(email):
     connection = global_connection_pool.connection()
-    cursor = connection()
+    cursor = connection.cursor()
     try:
-        cursor.execute("SELECT * FROM qa_admin.UsersRecord WHERE `email` = '{}';".format(email))
+        cursor.execute("SELECT * FROM qa_admin.UsersRecord WHERE `email` = {};".format(email))
         result = cursor.fetchone()
         data = process_row(result)
-        return data
+        return data["token"]
     except pymysql.Error as e:
         return jsonify({"error": str(e)})
     finally:
