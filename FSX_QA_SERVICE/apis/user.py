@@ -254,7 +254,7 @@ def user_details():
         return jsonify({"error": ""})
 
 
-@app_user.route("/aps/user_list/update-user", methods=["POST"])
+@app_user.route("/api/user_list/update-user", methods=["POST"])
 def update_user():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
