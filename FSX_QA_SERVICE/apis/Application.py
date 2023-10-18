@@ -1,11 +1,11 @@
 # -*- coding:utf-8 -*-
 # Application.py
-from dbutils.pooled_db import PooledDB
-import pymysql.cursors
 import json
-from FSX_QA_SERVICE.config import Mysql_configs
 import pymysql
+import pymysql.cursors
 from datetime import datetime
+from dbutils.pooled_db import PooledDB
+from FSX_QA_SERVICE.config import Mysql_configs
 from flask import request, jsonify
 from flask_cors import CORS
 from flask import Blueprint, Flask
@@ -62,15 +62,3 @@ def get_token_by_email(email):
     finally:
         cursor.close()
         connection.close()
-
-# @app_application.route("/api/application/search", methods=['POST'])
-# def searchBykey():
-#     body = request.get_data()
-#     body = json.load(body)
-#
-#     # 基础语句
-#     sql = ""
-#
-#     # 获取pageSize和currentPage
-#     pageSize = 10 if body["pageSize"] is None else body["pageSize"]
-#     currentPage = 1 if body["currentPage"] is None else body["currentPage"]

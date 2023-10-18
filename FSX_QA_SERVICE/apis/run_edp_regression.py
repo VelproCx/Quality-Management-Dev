@@ -7,8 +7,7 @@ import tempfile
 import time
 import random
 import traceback
-
-import mysql.connector
+# import mysql.connector
 from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context, make_response
 import subprocess
 from datetime import datetime, timedelta
@@ -96,15 +95,18 @@ def insert_response_data(response):
         if row_count > 0:
             # 如果存在相同的taskId，则执行更新,更新任务状态,文件
             update_sql = "UPDATE RegressionRecord SET status = %s, " \
-                         "log_file = %s, excel_file = %s, output = %s, report_filename = %s, log_filename = %s WHERE taskId = %s"
+                         "log_file = %s, excel_file = %s, output = %s, report_filename = %s, log_filename = %s " \
+                         "WHERE taskId = %s"
             update_values = (
                 response['status'], log_file, excel_file, output, report_filename, log_filename, response['taskId'])
             cursor.execute(update_sql, update_values)
             connection.commit()
         else:
             # 构建插入SQL语句
-            insert_sql = "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, log_file, excel_file, output, report_filename, log_filename)" \
-                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+            insert_sql = \
+                "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, log_file, " \
+                "excel_file, output, report_filename, log_filename)" \
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
             insert_values = (
                 response['taskId'], response['status'], int(response['type']), response['CreateUser'],
                 response['CreateTime'], log_file, excel_file, output, report_filename, log_filename)
@@ -348,7 +350,7 @@ def download_log_file(task_id):
         # 返回响应
         return response
 
-    except mysql.connector.Error as e:
+    except pymysql.Error as e:
         return str(e), 500
 
     finally:
@@ -391,7 +393,7 @@ def download_report_file(task_id):
         # 返回响应
         return response
 
-    except mysql.connector.Error as e:
+    except pymysql.Error as e:
         return str(e), 500
 
     finally:
