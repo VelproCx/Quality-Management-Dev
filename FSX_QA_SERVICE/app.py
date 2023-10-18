@@ -11,8 +11,10 @@ from flask import render_template
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
 from FSX_QA_SERVICE.apis.Application import global_connection_pool, process_row
 
-# 调试使用，正式部署请将template_folder="/Users/zhenghuaimao/Desktop/FSX-DEV-QA/templates"去掉
-app = Flask(__name__, template_folder="/Users/zhenghuaimao/Desktop/FSX-DEV-QA/templates")
+app = Flask(__name__)
+
+# 配置 CORS，允许来自指定 origin 的跨域请求
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # 生成一个包含 32 个随机十六进制字符的字符串作为 JWT 密钥
 jwt_secret_key = secrets.token_hex(32)
