@@ -7,12 +7,14 @@ import tempfile
 import time
 import random
 import traceback
-# import mysql.connector
 from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context, make_response
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
 from configparser import ConfigParser
+
+from flask_jwt_extended import jwt_required
+
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 import pymysql
 
@@ -73,14 +75,6 @@ def insert_response_data(response):
     cursor = connection.cursor()
     output = response.get('output', '')  # 获取response中的output字段，如果不存在则默认为空字符串
 
-    # 使用二进制读取log文件
-    with open(log_file_path, 'rb') as file:
-        log_file = file.read()
-
-    # 使用二进制读取xlsx文件
-    with open(report_file_path, 'rb') as file:
-        excel_file = file.read()
-
     # 检查描述字段的长度
     if len(output) > 255:
         output = output[:255]  # 截取前 255 个字符
@@ -93,6 +87,17 @@ def insert_response_data(response):
 
     try:
         if row_count > 0:
+            try:
+                # 使用二进制读取log文件
+                with open(log_file_path, 'rb') as file:
+                    log_file = file.read()
+
+                # 使用二进制读取xlsx文件
+                with open(report_file_path, 'rb') as file:
+                    excel_file = file.read()
+            except FileNotFoundError:
+                pass
+
             # 如果存在相同的taskId，则执行更新,更新任务状态,文件
             update_sql = "UPDATE RegressionRecord SET status = %s, " \
                          "log_file = %s, excel_file = %s, output = %s, report_filename = %s, log_filename = %s " \
@@ -104,12 +109,11 @@ def insert_response_data(response):
         else:
             # 构建插入SQL语句
             insert_sql = \
-                "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, log_file, " \
-                "excel_file, output, report_filename, log_filename)" \
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+                "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, output)" \
+                "VALUES (%s, %s, %s, %s, %s, %s)"
             insert_values = (
                 response['taskId'], response['status'], int(response['type']), response['CreateUser'],
-                response['CreateTime'], log_file, excel_file, output, report_filename, log_filename)
+                response['CreateTime'], output)
 
             # 执行插入操作
             cursor.execute(insert_sql, insert_values)
@@ -132,7 +136,6 @@ def execute_task(datas):
     stderr = ""
     output = None
     taskId = get_task_id()
-    log = None
     status = "progressing"
     create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
 
@@ -185,7 +188,7 @@ def execute_task(datas):
                 output = "connect error, please check the config"
                 retcode = 1  # 设置 retcode 为非零值，表示发生了错误,脚本没有执行成功
 
-            elif 'error' in stderr.lower():  # 进程执行信息有错误
+            elif 'Error:' in stderr:  # 进程执行信息有错误
                 output = stderr.split('Error:', 1)[-1].strip()
                 retcode = 1
 
@@ -193,7 +196,7 @@ def execute_task(datas):
     except Exception as e:
         print("Error executing subprocess:", e)
         retcode = 1  # 设置错误码为非零值
-        output = stderr  # 使用异常信息作为错误信息
+        output = e  # 使用异常信息作为错误信息
 
     if retcode == 0:
         status = "completed"
@@ -202,7 +205,6 @@ def execute_task(datas):
             'CreateUser': creator,
             'CreateTime': create_time,
             'retcode': retcode,
-            'stderr': stderr,
             'status': status,
             'type': 1
         }
@@ -214,7 +216,6 @@ def execute_task(datas):
             'CreateUser': creator,
             'CreateTime': create_time,
             'retcode': retcode,
-            'stderr': stderr,
             'status': status,
             'output': output,
             'type': 1
@@ -227,6 +228,7 @@ def execute_task(datas):
 
 
 @app_run_edp_regression.route('/api/edp_regression_list/run_edp_regression', methods=['POST'])
+@jwt_required()
 def run_edp_regression():
     data = request.get_data()
     datas = json.loads(data)
@@ -246,6 +248,7 @@ def run_edp_regression():
 
 # 获取 edp_regression 运行列表
 @app_run_edp_regression.route('/api/edp_regression_list', methods=['GET'])
+@jwt_required()
 def edp_regression_list():
     try:
         connection = global_connection_pool.connection()
@@ -316,6 +319,7 @@ def edp_regression_list():
 
 # 下载 edp_report.log
 @app_run_edp_regression.route('/api/edp_regression_list/download_edp_log/<task_id>', methods=['GET'])
+@jwt_required()
 def download_log_file(task_id):
     if not task_id:
         return 'task_id is missing', 400
@@ -360,6 +364,7 @@ def download_log_file(task_id):
 
 # 下载 edp_report.xlsx
 @app_run_edp_regression.route('/api/edp_regression_list/download_edp_report/<task_id>', methods=['GET'])
+@jwt_required()
 def download_report_file(task_id):
     if not task_id:
         return 'task_id is missing', 400
@@ -403,6 +408,7 @@ def download_report_file(task_id):
 
 # 在线编辑case
 @app_run_edp_regression.route('/api/update_edp_testcases', methods=['POST'])
+@jwt_required()
 def update_edp_testcases():
     data = request.get_json()  # 获取请求中的json数据
 
