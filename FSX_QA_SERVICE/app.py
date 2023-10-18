@@ -69,8 +69,6 @@ def login():
                         identity = user_datas["id"]
                         # 在登录成功时生成token
                         token_value = create_access_token(identity=identity)
-                        # 拼接token
-                        token = "Bearer {}".format(token_value)
                         # 拼接sql用户更新用户token
                         update_token_sql = "UPDATE qa_admin.UsersRecord SET token = %s WHERE id = %s"
                         # 执行sql并提交
@@ -83,7 +81,6 @@ def login():
 
                         response = process_row(userdata)
                         response = jsonify(response)
-                        response.headers['Authorization'] = token
                         return response, 200
                     if result['status'] == 2:
                         return jsonify({'message': 'The user has been frozen. Please contact the administrator'}), 404
