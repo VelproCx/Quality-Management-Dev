@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import json
+import bcrypt
 import pymysql
 from datetime import datetime
 from flask import request, jsonify
@@ -15,6 +16,7 @@ CORS(app_user, supports_credentials=True)
 
 
 @app_user.route("/api/user/user_list", methods=['GET'])
+@jwt_required()
 # 用户列表+查询
 def search_user():
     # 从数据库池获取数据库连接
@@ -85,10 +87,11 @@ def search_user():
             cursor.close()
             connection.close()
     else:
-        return jsonify({"Error": "Invalid file path"}), 400
+        return jsonify({"Error": "Invalid request data"}), 400
 
 
 @app_user.route("/api/user/create-user", methods=['POST'])
+@jwt_required()
 # 新增用户
 def create_user():
     # 从数据库池获取数据库连接
@@ -173,6 +176,7 @@ def delete_user():
 
 
 @app_user.route("/api/user/info", methods=["GET"])
+@jwt_required()
 # 用户详情
 def user_details():
     data = request.args.to_dict()
@@ -203,6 +207,7 @@ def user_details():
 
 
 @app_user.route("/api/user/update-user", methods=["POST"])
+@jwt_required()
 # 修改用户（只支持修改用户名字和邮箱）
 def update_user():
     connection = global_connection_pool.connection()

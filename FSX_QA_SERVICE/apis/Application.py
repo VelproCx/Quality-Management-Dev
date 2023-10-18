@@ -45,7 +45,7 @@ def process_row(row):
         "createdTime": row["createdTime"],
         "isDelete": row["isDelete"],
         "role": row["role"],
-        "Authorization": "Bearer " + row["token"]
+        "access_token": "Bearer " + row["token"]
     }
 
 

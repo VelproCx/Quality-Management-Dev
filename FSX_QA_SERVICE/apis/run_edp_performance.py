@@ -10,6 +10,7 @@ import tempfile
 from flask_cors import CORS
 from datetime import datetime
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
+from flask_jwt_extended import jwt_required
 from flask import send_file, Response, request, jsonify, Blueprint, make_response, stream_with_context
 app_run_edp_performance = Blueprint("run_edp_performance", __name__)
 CORS(app_run_edp_performance, supports_credentials=True)
@@ -168,6 +169,7 @@ def update_performance_record(task_id, status):
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/run_edp_performance', methods=['POST'])
+@jwt_required()
 def run_edp_performance():
     # 从请求体中获取数据
     data = request.get_data()
@@ -185,6 +187,7 @@ def run_edp_performance():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['GET'])
+@jwt_required()
 def download_performance_log_file():
     # 唯一参数时taskid，edp_performance_client脚本中需要将日志文件绑定taskid，然后再将其下载
     data = request.args.to_dict()
@@ -227,6 +230,7 @@ def download_performance_log_file():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/view_edp_performance_case', methods=['GET'])
+@jwt_required()
 def view_edp_performance_case():
     data = request.args.to_dict()
     if data is None or data == '':
@@ -252,6 +256,7 @@ def view_edp_performance_case():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list', methods=['GET'])
+@jwt_required()
 def edp_performance_list():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
