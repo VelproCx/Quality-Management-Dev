@@ -118,11 +118,14 @@ def check_blacklist():
     if endpoint == 'login':
         return
     token = request.headers.get('Authorization')
-    if token:
-        if token in blacklisted_tokens:
-            return jsonify({'message': 'Invalid token'}), 401
+    if request.method != 'OPTIONS':
+        if token:
+            if token in blacklisted_tokens:
+                return jsonify({'message': 'Invalid token'}), 401
+        else:
+            return jsonify({'error': 'Invalid request data'}), 400
     else:
-        return jsonify({'error': 'Invalid request data'}), 400
+        return
 
 
 if __name__ == '__main__':
