@@ -279,10 +279,10 @@ def edp_performance_list():
         if "status" in data and data["status"] != "":
             sql += " AND `status` = '{}'".format(data["status"])
         if "createdTime" in data and data["createdTime"] != "":
-            sql += " AND `start_date` LIKE '%{}%'".format(data["createdTime"])
+            sql += " AND `createdTime` LIKE '%{}%'".format(data["createdTime"])
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
-        sql = sql + ' ORDER BY `start_date` DESC'
+        sql = sql + ' ORDER BY `createdTime` DESC'
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '
@@ -320,7 +320,7 @@ def edp_performance_list():
                 data.append(
                     {
                         "taskId": row["taskId"],
-                        "createdTime": row["start_date"],
+                        "createdTime": row["createdTime"],
                         "source": row["createUser"],
                         "status": row["status"]
                     }
