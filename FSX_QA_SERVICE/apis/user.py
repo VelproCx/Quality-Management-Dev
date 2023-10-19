@@ -175,7 +175,7 @@ def delete_user():
         return jsonify({"error": "User does not exist"})
 
 
-@app_user.route("/api/user/info", methods=["GET"])
+@app_user.route("/api/user/user-info", methods=["GET"])
 @jwt_required()
 # 用户详情
 def user_details():
