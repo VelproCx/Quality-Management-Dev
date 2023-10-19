@@ -63,6 +63,7 @@ def tst(data):
     try:
         # 格式化数组中的shell命令
         shell_commands = ''.join(commands)
+        create_time = datetime.now().isoformat()
         # 将shell_commands用Popen方法执行
         process = subprocess.Popen(shell_commands, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # 读取process子进程的执行结果，poll方法执行时，如果子进程未结束，则返回None
@@ -75,7 +76,8 @@ def tst(data):
                 'creator': creator,
                 'taskId': task_id,
                 'status': result,
-                'type': 1
+                'type': 1,
+                'create_time': create_time
             }
             yield 'data: {}\n\n'.format(json.dumps(response))
 
@@ -279,10 +281,10 @@ def edp_performance_list():
         if "status" in data and data["status"] != "":
             sql += " AND `status` = '{}'".format(data["status"])
         if "createTime" in data and data["createTime"] != "":
-            sql += " AND `createTime` LIKE '%{}%'".format(data["createTime"])
+            sql += " AND `createDate` LIKE '%{}%'".format(data["createTime"])
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
-        sql = sql + ' ORDER BY `createTime` DESC'
+        sql = sql + ' ORDER BY `createDate` DESC'
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '
