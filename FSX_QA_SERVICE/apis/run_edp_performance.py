@@ -28,7 +28,7 @@ def get_task_id():
 # 避免重复代码
 def process_row(row):
     return {
-        "createdTime": row["start_date"],
+        "createTime": row["createDate"],
         "source": row["createUser"],
         "status": row["status"],
         "taskId": row["taskId"]
@@ -278,11 +278,11 @@ def edp_performance_list():
             sql += " AND `createUser` = '{}'".format(data["source"])
         if "status" in data and data["status"] != "":
             sql += " AND `status` = '{}'".format(data["status"])
-        if "createdTime" in data and data["createdTime"] != "":
-            sql += " AND `createdTime` LIKE '%{}%'".format(data["createdTime"])
+        if "createTime" in data and data["createTime"] != "":
+            sql += " AND `createTime` LIKE '%{}%'".format(data["createTime"])
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
-        sql = sql + ' ORDER BY `createdTime` DESC'
+        sql = sql + ' ORDER BY `createTime` DESC'
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '
@@ -310,7 +310,7 @@ def edp_performance_list():
             cursor.execute(count_sql)
             total_count = cursor.fetchone()["total_count"]
             # 查询数据
-            data_sql = "SELECT `start_date`, `status`, `createUser`, `taskId` " \
+            data_sql = "SELECT `createDate`, `status`, `createUser`, `taskId` " \
                        "FROM `qa_admin`.PerformanceRecord " \
                        "WHERE `type` = 1;"
             cursor.execute(data_sql)
@@ -320,7 +320,7 @@ def edp_performance_list():
                 data.append(
                     {
                         "taskId": row["taskId"],
-                        "createdTime": row["createdTime"],
+                        "createTime": row["createDate"],
                         "source": row["createUser"],
                         "status": row["status"]
                     }
