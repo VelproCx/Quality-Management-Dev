@@ -112,8 +112,8 @@ def insert_response_data(response):
                 "INSERT INTO RegressionRecord (taskId, status, type, CreateUser, CreateTime, output)" \
                 "VALUES (%s, %s, %s, %s, %s, %s)"
             insert_values = (
-                response['taskId'], response['status'], int(response['type']), response['CreateUser'],
-                response['CreateTime'], output)
+                response['taskId'], response['status'], int(response['type']), response['source'],
+                response['createTime'], output)
 
             # 执行插入操作
             cursor.execute(insert_sql, insert_values)
@@ -153,9 +153,9 @@ def execute_task(datas):
         # 在等待时发送中间状态的响应给前端
         response = {
             'taskId': taskId,
-            'CreateUser': creator,
+            'source': creator,
             'status': status,
-            'CreateTime': create_time,
+            'createTime': create_time,
             'type': 1
         }
         yield 'data: {}\n\n'.format(json.dumps(response))
@@ -202,8 +202,8 @@ def execute_task(datas):
         status = "completed"
         response = {
             'taskId': taskId,
-            'CreateUser': creator,
-            'CreateTime': create_time,
+            'source': creator,
+            'createTime': create_time,
             'retcode': retcode,
             'status': status,
             'type': 1
@@ -213,8 +213,8 @@ def execute_task(datas):
         status = "error"
         response = {
             'taskId': taskId,
-            'CreateUser': creator,
-            'CreateTime': create_time,
+            'source': creator,
+            'createTime': create_time,
             'retcode': retcode,
             'status': status,
             'output': output,
@@ -255,8 +255,9 @@ def edp_regression_list():
         cursor = connection.cursor()
 
         # 获取前端传回的参数
-        source = request.args.get('Source')
+        source = request.args.get('source')
         status = request.args.get('status')
+        taskId = request.args.get('taskId')
         start_time = request.args.get('startTime')
         end_time = request.args.get('endTime')
 
@@ -271,6 +272,9 @@ def edp_regression_list():
         if status:
             sql += " AND status = %s"
             params.append(status)
+        if taskId:
+            sql += " AND taskId = %s"
+            params.append(taskId)
         if start_time and end_time:
             # 假设前端传回的时间字符串格式为 "%Y-%m-%d %H:%M:%S"
             start_time = datetime.strptime(start_time, "%Y-%m-%d")
@@ -291,8 +295,8 @@ def edp_regression_list():
             data.append(
                 {
                     'taskId': row['taskId'],
-                    'CreateTime': formatted_create_time,
-                    'CreateUser': row['CreateUser'],
+                    'createTime': formatted_create_time,
+                    'source': row['CreateUser'],
                     'status': row['status'],
                     'output': row['output']
                 }
