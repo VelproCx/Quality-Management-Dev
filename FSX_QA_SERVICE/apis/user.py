@@ -1,13 +1,12 @@
 # -*- coding:utf-8 -*-
 import json
-import bcrypt
 import pymysql
 from datetime import datetime
 from flask import request, jsonify
 from flask_cors import CORS
 from flask import Blueprint
 from FSX_QA_SERVICE.apis.Application import global_connection_pool, process_row
-from flask_jwt_extended import jwt_required, create_access_token
+from flask_jwt_extended import jwt_required
 # from flask_jwt_extended import JWTManager, get_jwt_identity
 
 app_user = Blueprint("app_user", __name__)

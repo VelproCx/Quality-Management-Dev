@@ -27,8 +27,10 @@ def get_task_id():
 
 # 避免重复代码
 def process_row(row):
+    # 将 datetime 对象 row['CreateTime'] 格式化为 %Y-%m-%d %H:%M:%S 的时间字符串
+    formatted_create_time = row['createTime'].strftime("%Y-%m-%d %H:%M:%S")
     return {
-        "createTime": row["createDate"],
+        "createTime": formatted_create_time,
         "source": row["createUser"],
         "status": row["status"],
         "taskId": row["taskId"]
@@ -53,6 +55,8 @@ def tst(data):
 
     task_id = get_task_id()
     creator = datas["source"]
+    create_time = datetime.now().isoformat()
+    print(create_time)
 
     # 创建一个空数组用于存放shell命令
     commands = []
@@ -75,6 +79,7 @@ def tst(data):
                 'creator': creator,
                 'taskId': task_id,
                 'status': result,
+                'createTime': create_time,
                 'type': 1
             }
             yield 'data: {}\n\n'.format(json.dumps(response))
@@ -227,32 +232,6 @@ def download_performance_log_file():
     shutil.rmtree(temp_dir)
 
     return response, 200
-
-
-@app_run_edp_performance.route('/api/edp_performance_list/view_edp_performance_case', methods=['GET'])
-@jwt_required()
-def view_edp_performance_case():
-    data = request.args.to_dict()
-    if data is None or data == '':
-        return jsonify({"Error": "Invalid request data"}), 400
-    file_name = data["filename"]
-    case_file_path = 'edp_fix_client/testcases/{}.json'.format(file_name)
-    if os.path.exists(case_file_path):
-        # 读取json文件
-        with open(case_file_path, "r") as file:
-            file_content = file.read()
-            data = json.loads(file_content)
-        # 获取testCase列表
-        test_cases = data["testCase"]
-        # 统计Symbol数量
-        symbol_count = len([test_case["Symbol"] for test_case in test_cases])
-        response = {
-            "case_count": symbol_count,
-            "file_content": file_content
-        }
-        return jsonify(response), 200
-    else:
-        return jsonify({"Error": "The file is not found"}), 404
 
 
 @app_run_edp_performance.route('/api/edp_performance_list', methods=['GET'])
