@@ -18,3 +18,7 @@ CREATE TABLE `UsersRecord` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户管理';
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+# 20231023，修改列名
+ALTER TABLE `UsersRecord`
+CHANGE COLUMN createdTime createTime datetime COMMENT '账号创建时间';
