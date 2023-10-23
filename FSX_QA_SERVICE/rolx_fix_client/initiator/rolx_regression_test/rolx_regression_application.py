@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding: utf8 -*-
 """FIX Application"""
+import argparse
+import configparser
 import difflib
 import sys
 
@@ -32,8 +34,13 @@ generation_path = os.path.join(Parent_path, "file_generation.py")
 # 获取data_comparison
 data_comparison_path = os.path.join(Parent_path, "data_comparison.py")
 
+# 获取当前日期
+current_date = datetime.now().strftime("%Y-%m-%d")
+report_filename = f"rolx_report_{current_date}.xlsx"
+log_filename = f"rolx_report_{current_date}.log"
+
 # report
-setup_logger('logfix', 'logs/rolx_report.log')
+setup_logger('logfix', 'rolx_fix_client/initiator/rolx_regression_test/logs/' + log_filename)
 logfix = logging.getLogger('logfix')
 
 
@@ -82,8 +89,8 @@ class Application(fix.Application):
         # 将JSON数据写入文件
         with open('logs/recv_data.json', 'w') as file:
             file.write(json_data)
-        self.Result = module1.compare_field_values('../../testcases/ROL_Functional_Test_Matrix.json',
-                                                   'logs/recv_data.json',
+        self.Result = module1.compare_field_values('rolx_fix_client/testcases/test.json',
+                                                   'rolx_fix_client/initiator/rolx_regression_test/logs/recv_data.json',
                                                    'ordstatus')
         print("Session ({}) logout !".format(sessionID.toString()))
 
@@ -100,9 +107,9 @@ class Application(fix.Application):
                 errorCode_list.append(" ")
 
         # report文件里写入字段
-        self.writeResExcel('report/rolx_report.xlsx', ordstatus_list, 2, 'J')
-        self.writeResExcel('report/rolx_report.xlsx', errorCode_list, 2, 'K')
-        self.writeResExcel('report/rolx_report.xlsx', self.Result, 2, 'L')
+        self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, ordstatus_list, 2, 'J')
+        self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, errorCode_list, 2, 'K')
+        self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, self.Result, 2, 'L')
 
         return
 
@@ -391,34 +398,34 @@ class Application(fix.Application):
 
     def logsCheck(self):
         response = ['ps: 若列表存在failed数据，请查看report.log文件']
-        self.writeResExcel('report/rolx_report.xlsx', response, 2, 'M')
-        with open('logs/rolx_report.log', 'r') as f:
+        self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 2, 'M')
+        with open('rolx_fix_client/initiator/rolx_regression_test/logs/' + log_filename, 'r') as f:
             content = f.read()
         if 'Market Price is not matching' in content:
             logfix.info('Market Price is NG')
             response = ['Market Price is NG']
-            self.writeResExcel('report/rolx_report.xlsx', response, 5, 'M')
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 5, 'M')
         else:
             logfix.info('Market Price is OK')
             response = ['Market Price is OK']
-            self.writeResExcel('report/rolx_report.xlsx', response, 3, 'M')
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 3, 'M')
 
         if 'FixMsg Error' in content:
             logfix.info('FixMsg is NG')
             response = ['FixMsg is NG']
-            self.writeResExcel('report/rolx_report.xlsx', response, 6, 'M')
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 6, 'M')
         else:
             logfix.info('FixMsg is OK')
             response = ['FixMsg is OK']
-            self.writeResExcel('report/rolx_report.xlsx', response, 4, 'M')
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 4, 'M')
         if 'Order execType error' in content:
             logfix.info("execType is NG")
             response = ['execType is NG']
-            self.writeResExcel('report/rolx_report.xlsx', response, 7, "M")
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 7, "M")
         else:
             logfix.info("execType is OK")
             response = ['execType is OK']
-            self.writeResExcel('report/rolx_report.xlsx', response, 8, "M")
+            self.writeResExcel('rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename, response, 8, "M")
 
     def writeResExcel(self, filename, data, row, column):
         # 打开现有的 Excel 文件或创建新的 Workbook
@@ -513,8 +520,8 @@ class Application(fix.Application):
         generation = module1.generation
 
         """Run"""
-        with open('../../testcases/ROL_Functional_Test_Matrix.json', 'r') as f_json:
-            generation('../../testcases/ROL_Functional_Test_Matrix.json', 'report/rolx_report.xlsx')
+        with open('rolx_fix_client/testcases/test.json', 'r') as f_json:
+            generation('rolx_fix_client/testcases/test.json', 'rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename)
             case_data_list = json.load(f_json)
             time.sleep(2)
 
@@ -536,10 +543,47 @@ class Application(fix.Application):
                         time.sleep(1)
                     self.order_cancel_request(row)
 
+    def read_config(self, Sender, Target, Host, Port):
+        # 读取并修改配置文件
+        config = configparser.ConfigParser(allow_no_value=True)
+        config.optionxform = str  # 保持键的大小写
+
+        # 设置选项转换函数
+        config.read('rolx_fix_client/initiator/rolx_regression_test/rolx_regression_client.cfg')
+        config.set('SESSION', 'SenderCompID', Sender)
+        config.set('SESSION', 'TargetCompID', Target)
+        config.set('SESSION', 'SocketConnectHost', Host)
+        config.set('SESSION', 'SocketConnectPort', Port)
+
+        with open('rolx_fix_client/initiator/rolx_regression_test/rolx_regression_client.cfg', 'w') as configfile:
+            config.write(configfile, space_around_delimiters=False)
+
 
 def main():
     try:
-        settings = fix.SessionSettings("rolx_regression_client.cfg")
+        # 使用argparse的add_argument方法进行传参
+        parser = argparse.ArgumentParser()  # 创建对象
+        parser.add_argument('--account', default='RSIT_ROLX_ACCOUNT_7', help='choose account to use for test')
+        parser.add_argument('--Sender', default='RSIT_ROLX_7', help='choose Sender to use for test')
+        parser.add_argument('--Target', default='FSX_SIT_ROLX', help='choose Target to use for test')
+        parser.add_argument('--Host', default='35.74.32.240', help='choose Host to use for test')
+        parser.add_argument('--Port', default='5007', help='choose Port to use for test')
+
+        args = parser.parse_args()  # 解析参数
+        account = args.account
+        Sender = args.Sender
+        Target = args.Target
+        Host = args.Host
+        Port = args.Port
+
+        cfg = Application()
+        cfg.Sender = Sender
+        cfg.Target = Target
+        cfg.Host = Host
+        cfg.Port = Port
+        cfg.read_config(Sender, Target, Host, Port)
+
+        settings = fix.SessionSettings("rolx_fix_client/initiator/rolx_regression_test/rolx_regression_client.cfg")
         application = Application()
         storefactory = fix.FileStoreFactory(settings)
         logfactory = fix.FileLogFactory(settings)
@@ -548,7 +592,7 @@ def main():
         initiator.start()
         application.load_test_case()
         # 执行完所有测试用例后等待时间
-        sleep_duration = timedelta(minutes=5)
+        sleep_duration = timedelta(minutes=1)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)
@@ -561,4 +605,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
