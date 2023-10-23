@@ -19,3 +19,9 @@ CREATE TABLE `PerformanceRecord` (
 ) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+
+
+# 20231023，修改列名
+ALTER TABLE `PerformanceRecord`
+CHANGE COLUMN createDate createTime datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';

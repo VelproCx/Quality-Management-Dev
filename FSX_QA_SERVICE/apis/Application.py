@@ -37,12 +37,14 @@ global_connection_pool = pool
 
 
 def process_row(row):
+    # 将 datetime 对象 row['CreateTime'] 格式化为 %Y-%m-%d %H:%M:%S 的时间字符串
+    formatted_create_time = row['createTime'].strftime("%Y-%m-%d %H:%M:%S")
     return {
         "id": row["id"],
         "name": row["name"],
         "status": row["status"],
         "email": row["email"],
-        "createdTime": row["createdTime"],
+        "createTime": formatted_create_time,
         "isDelete": row["isDelete"],
         "role": row["role"],
         "access_token": row["token"]

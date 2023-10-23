@@ -6,6 +6,7 @@ from apis.Application import app_application
 from apis.user import app_user
 from apis.run_edp_performance import app_run_edp_performance
 from apis.run_edp_full_stock import app_run_edp_full_stock
+from apis.edp_test_case import app_edp_test_case
 from flask_cors import CORS
 from flask import render_template
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
@@ -28,6 +29,7 @@ app.register_blueprint(app_user)
 app.register_blueprint(app_run_edp_performance)
 app.register_blueprint(app_run_edp_full_stock)
 app.register_blueprint(app_run_edp_regression)
+app.register_blueprint(app_edp_test_case)
 
 
 @app.route('/')
