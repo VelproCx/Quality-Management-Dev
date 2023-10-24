@@ -1,0 +1,26 @@
+{
+  "testCase": [
+    {
+      "Id": "35",
+      "ScenarioName": "Tick Size Check",
+      "Account": "RSIT_ACCOUNT_2",
+      "Market": "ROLX",
+      "ActionType": "NewAck",
+      "Comment": "Price<1,000 Tick size != 1",
+      "OrderQty": 5,
+      "OrdType": "2",
+      "Price": 371.5,
+      "Side": "2",
+      "Symbol": "4689",
+      "TimeInForce": "0",
+      "CrossingPriceType": "ROL",
+      "Rule80A": "P",
+      "CashMargin": "1",
+      "MarginTransactionType": "0",
+      "ordstatus": [
+        "8"
+      ],
+      "errorCode": "ERROR_10010015,Tick-size is not matched with TOPIX100 tick"
+    }
+  ]
+}
