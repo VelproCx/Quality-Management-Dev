@@ -56,7 +56,6 @@ def tst(data):
     task_id = get_task_id()
     creator = datas["source"]
     create_time = datetime.now().isoformat()
-    print(create_time)
 
     # 创建一个空数组用于存放shell命令
     commands = []
