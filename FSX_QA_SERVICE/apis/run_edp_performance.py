@@ -240,16 +240,16 @@ def edp_performance_list():
     cursor = connection.cursor()
     data = request.args.to_dict()
     if data is not None and data != '':
-        if 'pageSize' in data and data['pageSize'] != "":
-            str_page_size = data["pageSize"]
-            page_size = int(str_page_size)
-        else:
-            page_size = 10
-        if 'current' in data and data['current'] != "":
-            str_current = data["current"]
-            current = int(str_current)
-        else:
-            current = 1
+        # if 'pageSize' in data and data['pageSize'] != "":
+        #     str_page_size = data["pageSize"]
+        #     page_size = int(str_page_size)
+        # else:
+        #     page_size = 10
+        # if 'current' in data and data['current'] != "":
+        #     str_current = data["current"]
+        #     current = int(str_current)
+        # else:
+        #     current = 1
         sql = ""
         if "source" in data and data["source"] != "":
             sql += " AND `createUser` = '{}'".format(data["source"])
@@ -263,14 +263,14 @@ def edp_performance_list():
             sql += " AND `createTime` < '{}'".format(end_time)
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
-        sql = sql + ' ORDER BY `createTime` DESC LIMIT {},{}'.format((current-1)*page_size, page_size)
+        sql = sql + ' ORDER BY `createTime` DESC'
+        # sql = sql + ' ORDER BY `createTime` DESC LIMIT {},{}'.format((current - 1) * page_size, page_size)
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '
                            'WHERE `type` = 1 {}'.format(sql))
             total_count = cursor.fetchone()["total_count"]
             # 查询数据
-            print("SELECT * FROM `qa_admin`.PerformanceRecord WHERE `type` = 1 {}".format(sql))
             cursor.execute("SELECT * FROM `qa_admin`.PerformanceRecord WHERE `type` = 1 {}".format(sql))
             search_result = cursor.fetchall()
             data = [process_row(row) for row in search_result]
