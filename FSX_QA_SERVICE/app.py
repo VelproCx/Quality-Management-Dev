@@ -21,6 +21,7 @@ CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 # 生成一个包含 32 个随机十六进制字符的字符串作为 JWT 密钥
 jwt_secret_key = secrets.token_hex(32)
 app.config['JWT_SECRET_KEY'] = jwt_secret_key
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = 7200
 jwt = JWTManager(app)
 # 允许跨域请求
 CORS(app, supports_credentials=True)
