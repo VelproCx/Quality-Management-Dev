@@ -8,7 +8,7 @@ import time
 import random
 import tempfile
 from flask_cors import CORS
-from datetime import datetime
+from datetime import datetime, timedelta
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 from flask_jwt_extended import jwt_required
 from flask import send_file, Response, request, jsonify, Blueprint, make_response, stream_with_context
@@ -234,39 +234,43 @@ def download_performance_log_file():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list', methods=['GET'])
-@jwt_required()
+# @jwt_required()
 def edp_performance_list():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
     data = request.args.to_dict()
     if data is not None and data != '':
-        # if 'pageSize' in data and data['pageSize'] != "":
-        #     str_pageSize = data["pageSize"]
-        #     pageSize = int(str_pageSize)
-        # else:
-        #     pageSize = 10
-        #
-        # if 'current' in data and data['current'] != "":
-        #     str_current = data["current"]
-        #     current = int(str_current)
-        # else:
-        #     current = 1
+        if 'pageSize' in data and data['pageSize'] != "":
+            str_page_size = data["pageSize"]
+            page_size = int(str_page_size)
+        else:
+            page_size = 10
+        if 'current' in data and data['current'] != "":
+            str_current = data["current"]
+            current = int(str_current)
+        else:
+            current = 1
         sql = ""
         if "source" in data and data["source"] != "":
             sql += " AND `createUser` = '{}'".format(data["source"])
         if "status" in data and data["status"] != "":
             sql += " AND `status` = '{}'".format(data["status"])
-        if "createTime" in data and data["createTime"] != "":
-            sql += " AND `createTime` LIKE '%{}%'".format(data["createTime"])
+        if "startTime" in data and data["startTime"] != "":
+            start_time = datetime.strptime(data["startTime"], "%Y-%m-%d")
+            sql += " AND `createTime` >= '{}' ".format(start_time)
+        if "endTime" in data and data["endTime"] != "":
+            end_time = (datetime.strptime(data["endTime"], "%Y-%m-%d")) + timedelta(days=1)
+            sql += " AND `createTime` < '{}'".format(end_time)
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
-        sql = sql + ' ORDER BY `createTime` DESC'
+        sql = sql + ' ORDER BY `createTime` DESC LIMIT {},{}'.format((current-1)*page_size, page_size)
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '
                            'WHERE `type` = 1 {}'.format(sql))
             total_count = cursor.fetchone()["total_count"]
             # 查询数据
+            print("SELECT * FROM `qa_admin`.PerformanceRecord WHERE `type` = 1 {}".format(sql))
             cursor.execute("SELECT * FROM `qa_admin`.PerformanceRecord WHERE `type` = 1 {}".format(sql))
             search_result = cursor.fetchall()
             data = [process_row(row) for row in search_result]
