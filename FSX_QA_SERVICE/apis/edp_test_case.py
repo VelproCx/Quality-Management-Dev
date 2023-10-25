@@ -16,6 +16,7 @@ app_edp_test_case = Blueprint("edp_test_case", __name__)
 CORS(app_edp_test_case, supports_credentials=True)
 
 
+# 读取文件夹中所有文件
 def get_case_file_list(path):
     file_list = []
     for file_name in os.listdir(path):
@@ -26,16 +27,16 @@ def get_case_file_list(path):
 
 
 @app_edp_test_case.route('/api/edp_test_case', methods=['POST'])
-@jwt_required()
+# @jwt_required()
 def edp_test_case_list():
     case_path = "edp_fix_client/testcases"
     testcase = get_case_file_list(case_path)
     return testcase
 
 
-@app_edp_test_case.route('/api/edp_test_case/view', methods=['GET'])
-# @jwt_required()
-def view_edp_performance_case():
+@app_edp_test_case.route('/api/edp_test_case/read_write_case', methods=['GET'])
+@jwt_required()
+def view_edp_case():
     data = request.args.to_dict()
     if data is None or data == '':
         return jsonify({"Error": "Invalid request data"}), 400
@@ -62,3 +63,35 @@ def view_edp_performance_case():
 
     else:
         return jsonify({"Error": "The file is not found"}), 404
+
+
+@app_edp_test_case.route('/api/edp_test_case/read_write_case', methods=['POST'])
+@jwt_required()
+def edit_edp_case():
+    try:
+        datas = request.get_json()
+        file_name = datas["file_name"]
+        file_path = "edp_fix_client/testcases/{}.json".format(file_name)
+        if os.path.exists(file_path):
+            # 如果文件存在，将数据保存到文件中
+            data = datas["data"]
+            with open(file_path, "w") as file:
+                json.dump(data, file)
+            return jsonify({"msg": "Test case save successfully"}), 200
+        else:
+            # 如果文件不存在，则询问是否新增文件
+            result = datas["operation"]
+            if result == "Yes":
+                with open(file_path, "a") as file:
+                    data = datas["data"]
+                    file.write(data)
+                return jsonify({"msg": "New case file created and data added"}), 200
+            elif result == "No":
+                return jsonify({"msg": "No new case file created"}), 200
+            else:
+                return jsonify({"msg": "The file does not exist and the modification has been abandoned"}), 200
+
+    except IOError:
+        return jsonify({"error": "Internal Server Error"}), 500
+
+

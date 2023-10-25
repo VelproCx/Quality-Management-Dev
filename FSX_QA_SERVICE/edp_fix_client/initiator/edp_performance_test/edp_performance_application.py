@@ -176,7 +176,8 @@ class Application(fix.Application):
 
     def read_config(self, sender, target, host, port):
         # 读取并修改配置文件
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(allow_no_value=True)
+        config.optionxform = str  # 保持键的大小写
         config.read('edp_fix_client/initiator/edp_performance_test/edp_performance_client.cfg')
         config.set('SESSION', 'SenderCompID', sender)
         config.set('SESSION', 'TargetCompID', target)
@@ -209,7 +210,7 @@ def main():
 
         # report
         setup_logger('logfix',
-                     'edp_fix_client/initiator/edp_performance_test/report/{}_{}_Report.log'.format(taskid, account))
+                     'edp_fix_client/initiator/edp_performance_test/logs/{}_{}_Report.log'.format(taskid, account))
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
