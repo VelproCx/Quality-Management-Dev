@@ -4,12 +4,10 @@ import time
 import json
 import random
 import shutil
-import zipfile
 import tempfile
 import threading
 import subprocess
-
-import flask
+import tarfile
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import jwt_required
@@ -38,13 +36,6 @@ def process_row(row):
         "status": row["status"],
         "taskId": row["taskId"]
     }
-
-
-# 日志压缩
-def create_zip_archive(file_paths, zip_file_path):
-    with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for file_path in file_paths:
-            zipf.write(file_path, os.path.basename(file_path))
 
 
 def tst(shell_commands, task_id):
@@ -173,7 +164,7 @@ def run_edp_performance():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['POST'])
-@jwt_required()
+# @jwt_required()
 def download_performance_log_file():
     data = request.get_data()
     # 判断传参是否为空
@@ -191,23 +182,37 @@ def download_performance_log_file():
         if taskid in filename:
             log_filepath = os.path.join(log_path, filename)
             file_paths.append(log_filepath)
-    # 判断数组是否为空
     if not file_paths:
         return jsonify({"Error": "The file is not found"}), 404
+    # 创建临时目录用于存放压缩文件
+    temp_dir = tempfile.mkdtemp()
 
-    else:
-        # 创建一个Flask 返回的多文件响应对象
-        response = flask.make_response()
+    # # 记录打包时间
+    # zip_time = datetime.now()
+    # zip_name = "performance_logs_{}.zip".format(zip_time.strftime("%Y-%m-%d_%H-%M-%S"))
+    # zip_file_path = os.path.join(temp_dir, zip_name)
+    # # 创建压缩文件
+    # create_zip_archive(file_paths, zip_file_path)
+    # 记录打包时间
+    tar_time = datetime.now()
+    tar_name = "performance_logs_{}.zip".format(tar_time.strftime("%Y-%m-%d_%H-%M-%S"))
+    tar_file_path = os.path.join(temp_dir, tar_name)
+    # 创建一个 Tar 文件
+    with tarfile.open(tar_file_path, 'w') as tar:
+        # 将每个日志文件添加到 Tar 文件中
+        for log_file in file_paths:
+            file_path = os.path.join(log_file)
+            arc_name = os.path.basename(log_file)  # 获取文件的基本名称
+            tar.add(file_path, arcname=arc_name)
 
-        # 设置响应头，
-        response.headers['Content-Type'] = 'application/octet-stream'
-        response.headers['Content-Disposition'] = 'attachment;'
+    # 创建响应对象
+    response = make_response(send_file(tar_file_path, as_attachment=True))
 
-        # 循环处理每个文件
-        for file_path in file_paths:
-            # 将文件逐个添加到响应体中
-            with open(file_path, 'rb') as file:
-                response.data += file.read()
+    # 设置 Content-Disposition 头部字段
+    response.headers['Content-Disposition'] = 'attachment; filename={}'.format(tar_name)
+
+    # 删除临时目录及其内容
+    shutil.rmtree(temp_dir)
 
     return response, 200
 
