@@ -14,9 +14,6 @@ import json
 
 __SOH__ = chr(1)
 
-# log
-setup_logger('logfix', 'logs/edp_report.log')
-logfix = logging.getLogger('logfix')
 
 
 class Application(fix.Application):
@@ -378,14 +375,15 @@ class Application(fix.Application):
 
     def read_config(self, Sender, Target, Host, Port):
         # 读取并修改配置文件
-        config = configparser.ConfigParser()
-        config.read('edp_regression_client.cfg')
+        config = configparser.ConfigParser(allow_no_value=True)
+        config.optionxform = str  # 保持键的大小写
+        config.read('edp_smoke_client.cfg')
         config.set('SESSION', 'SenderCompID', Sender)
         config.set('SESSION', 'TargetCompID', Target)
         config.set('SESSION', 'SocketConnectHost', Host)
         config.set('SESSION', 'SocketConnectPort', Port)
 
-        with open('edp_regression_client.cfg', 'w') as configfile:
+        with open('edp_smoke_client.cfg', 'w') as configfile:
             config.write(configfile)
 
 
@@ -415,7 +413,7 @@ def main():
             Data = {}
 
         # report
-        setup_logger('logfix', 'edp_regression_test_Report.log')
+        setup_logger('logfix', 'edp_smoke_test_Report.log')
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
@@ -425,7 +423,7 @@ def main():
         cfg.Port = Port
         cfg.read_config(Sender, Target, Host, Port)
 
-        settings = fix.SessionSettings("edp_regression_client.cfg")
+        settings = fix.SessionSettings("edp_smoke_client.cfg")
         application = Application()
         application.account = account
         store_factory = fix.FileStoreFactory(settings)
@@ -433,6 +431,7 @@ def main():
         initiator = fix.SocketInitiator(application, store_factory, settings, log_factory)
 
         initiator.start()
+        time.sleep(2)
         if Data["ActionType"] == "NewAck":
             application.insert_order_request(Data)
         elif Data["ActionType"] == "CancelAck":
