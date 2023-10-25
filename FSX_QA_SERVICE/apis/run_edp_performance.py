@@ -8,6 +8,8 @@ import zipfile
 import tempfile
 import threading
 import subprocess
+
+import flask
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import jwt_required
@@ -81,12 +83,6 @@ def tst(shell_commands, task_id):
         return response
         # 修改成return之后没有调试
     update_performance_record(task_id, result)
-
-    # # 执行压力测试的逻辑
-    # print(f"Executing commands for task {task_id} created by {creator}: {shell_commands}")
-    # # 模拟耗时操作
-    # time.sleep(10)
-    # print(f"Task {task_id} completed.")
 
 
 # 向PerformanceRecord插入数据
@@ -176,18 +172,18 @@ def run_edp_performance():
     return jsonify(response), 200
 
 
-@app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['GET'])
+@app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['POST'])
 @jwt_required()
 def download_performance_log_file():
-    # 唯一参数时taskid，edp_performance_client脚本中需要将日志文件绑定taskid，然后再将其下载
-    data = request.args.to_dict()
+    data = request.get_data()
     # 判断传参是否为空
-    if data is None or data == '':
+    if data is None:
         return jsonify({"Error": "Invalid file path"}), 400
 
     # 创建一个空数组用于存放所有日志的路径
     file_paths = []
-    taskid = data["taskId"]
+    datas = json.loads(data)
+    taskid = datas["taskId"]
     # 日志地址
     log_path = "edp_fix_client/initiator/edp_performance_test/logs"
     # 遍历日志目录下的所有文件
@@ -195,26 +191,23 @@ def download_performance_log_file():
         if taskid in filename:
             log_filepath = os.path.join(log_path, filename)
             file_paths.append(log_filepath)
+    # 判断数组是否为空
     if not file_paths:
         return jsonify({"Error": "The file is not found"}), 404
-    # 创建临时目录用于存放压缩文件
-    temp_dir = tempfile.mkdtemp()
 
-    # 记录打包时间
-    zip_time = datetime.now()
-    zip_name = "performance_logs_{}.zip".format(zip_time.strftime("%Y-%m-%d_%H-%M-%S"))
-    zip_file_path = os.path.join(temp_dir, zip_name)
-    # 创建压缩文件
-    create_zip_archive(file_paths, zip_file_path)
+    else:
+        # 创建一个Flask 返回的多文件响应对象
+        response = flask.make_response()
 
-    # 创建响应对象
-    response = make_response(send_file(zip_file_path, as_attachment=True))
+        # 设置响应头，
+        response.headers['Content-Type'] = 'application/octet-stream'
+        response.headers['Content-Disposition'] = 'attachment;'
 
-    # 设置 Content-Disposition 头部字段
-    response.headers['Content-Disposition'] = 'attachment; filename={}'.format(zip_name)
-
-    # 删除临时目录及其内容
-    shutil.rmtree(temp_dir)
+        # 循环处理每个文件
+        for file_path in file_paths:
+            # 将文件逐个添加到响应体中
+            with open(file_path, 'rb') as file:
+                response.data += file.read()
 
     return response, 200
 
