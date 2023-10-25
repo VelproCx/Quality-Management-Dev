@@ -1,17 +1,18 @@
 # -*- coding:utf-8 -*-
-import json
 import os
-import shutil
-import subprocess
-import zipfile
 import time
+import json
 import random
+import shutil
+import zipfile
 import tempfile
+import threading
+import subprocess
 from flask_cors import CORS
 from datetime import datetime, timedelta
-from FSX_QA_SERVICE.apis.Application import global_connection_pool
 from flask_jwt_extended import jwt_required
-from flask import send_file, Response, request, jsonify, Blueprint, make_response, stream_with_context
+from FSX_QA_SERVICE.apis.Application import global_connection_pool
+from flask import send_file, request, jsonify, Blueprint, make_response
 app_run_edp_performance = Blueprint("run_edp_performance", __name__)
 CORS(app_run_edp_performance, supports_credentials=True)
 
@@ -44,45 +45,10 @@ def create_zip_archive(file_paths, zip_file_path):
             zipf.write(file_path, os.path.basename(file_path))
 
 
-def tst(data):
-    # 判空处理
-    if not data or data == b'':
-        yield jsonify({"error": "Invalid request data"}), 400
-        return
-        # return或者直接执行默认参数
-    # 数据转换
-    datas = json.loads(data)
-
-    task_id = get_task_id()
-    creator = datas["source"]
-    create_time = datetime.now().isoformat()
-
-    # 创建一个空数组用于存放shell命令
-    commands = []
-    # 循环从请求体中将shell命令读取出来
-    for command in datas["commands"]:
-        shell = command["value"] + " --TaskId {}".format(task_id) + " &\n" + "sleep 1\n"
-        commands.append(shell)
+def tst(shell_commands, task_id):
     try:
-        # 格式化数组中的shell命令
-        shell_commands = ''.join(commands)
         # 将shell_commands用Popen方法执行
         process = subprocess.Popen(shell_commands, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # 读取process子进程的执行结果，poll方法执行时，如果子进程未结束，则返回None
-        result = process.poll()
-        if result is None:
-            result = "progressing"
-            # 先将压力测试任务创建成功返回给接口，然后继续等待压力测试脚本执行结果
-            insert_performance_record(task_id, creator, result)
-            response = {
-                'creator': creator,
-                'taskId': task_id,
-                'status': result,
-                'createTime': create_time,
-                'type': 1
-            }
-            yield 'data: {}\n\n'.format(json.dumps(response))
-
         # 创建两个空数组用来存放shell命令的执行结果（status）还有执行输出（outputs）
         statuses = []
         outputs = []
@@ -102,7 +68,7 @@ def tst(data):
             "output": output
         }
         return response
-    #     修改成return之后没有调试
+        # 修改成return之后没有调试
 
     except subprocess.TimeoutExpired:
         output = "Execution time out"
@@ -113,15 +79,14 @@ def tst(data):
             "output": output
         }
         return response
-        #     修改成return之后没有调试
+        # 修改成return之后没有调试
     update_performance_record(task_id, result)
-    response = {
-        'creator': creator,
-        'taskId': task_id,
-        'status': result,
-        'type': 1
-    }
-    yield 'data: {}\n\n'.format(json.dumps(response))
+
+    # # 执行压力测试的逻辑
+    # print(f"Executing commands for task {task_id} created by {creator}: {shell_commands}")
+    # # 模拟耗时操作
+    # time.sleep(10)
+    # print(f"Task {task_id} completed.")
 
 
 # 向PerformanceRecord插入数据
@@ -177,17 +142,38 @@ def update_performance_record(task_id, status):
 def run_edp_performance():
     # 从请求体中获取数据
     data = request.get_data()
-    # 判空处理
     if not data or data == b'':
         return jsonify({"error": "Invalid request data"}), 400
-    headers = {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-    }
+    # 数据转换
+    datas = json.loads(data)
+    task_id = get_task_id()
+    creator = datas["source"]
+    create_time = datetime.now().isoformat()
 
-    # 将生成器转换为响应对象，并传递响应头
-    return Response(stream_with_context(tst(data)), headers=headers)
+    # 创建一个空数组用于存放shell命令
+    commands = []
+    # 循环从请求体中将shell命令读取出来
+    for command in datas["commands"]:
+        shell = command["value"] + " --TaskId {}".format(task_id) + " &\n" + "sleep 1\n"
+        commands.append(shell)
+    # 格式化数组中的shell命令
+    shell_commands = ''.join(commands)
+
+    thread = threading.Thread(target=tst, args=(shell_commands, task_id))
+    thread.start()
+
+    result = "progressing"
+
+    response = {
+        'creator': creator,
+        'taskId': task_id,
+        'status': result,
+        'createTime': create_time,
+        'type': 1
+    }
+    # 将压力测试任务创建成功返回给接口，然后继续等待压力测试脚本执行结果
+    insert_performance_record(task_id, creator, result)
+    return jsonify(response), 200
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['GET'])
@@ -203,7 +189,7 @@ def download_performance_log_file():
     file_paths = []
     taskid = data["taskId"]
     # 日志地址
-    log_path = "edp_fix_client/initiator/edp_performance_test/report"
+    log_path = "edp_fix_client/initiator/edp_performance_test/logs"
     # 遍历日志目录下的所有文件
     for filename in os.listdir(log_path):
         if taskid in filename:
@@ -234,7 +220,7 @@ def download_performance_log_file():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list', methods=['GET'])
-# @jwt_required()
+@jwt_required()
 def edp_performance_list():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
@@ -264,7 +250,6 @@ def edp_performance_list():
         if "taskId" in data and data["taskId"] != "":
             sql += " AND `taskId` LIKE '%{}%'".format(data["taskId"])
         sql = sql + ' ORDER BY `createTime` DESC'
-        # sql = sql + ' ORDER BY `createTime` DESC LIMIT {},{}'.format((current - 1) * page_size, page_size)
         try:
             # 统计数据总数
             cursor.execute('SELECT COUNT(*) as total_count FROM `qa_admin`.PerformanceRecord '

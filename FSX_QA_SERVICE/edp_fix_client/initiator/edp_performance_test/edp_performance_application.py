@@ -210,7 +210,7 @@ def main():
 
         # report
         setup_logger('logfix',
-                     'edp_fix_client/initiator/edp_performance_test/report/{}_{}_Report.log'.format(taskid, account))
+                     'edp_fix_client/initiator/edp_performance_test/logs/{}_{}_Report.log'.format(taskid, account))
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
