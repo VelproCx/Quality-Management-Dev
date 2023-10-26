@@ -34,7 +34,8 @@ def process_row(row):
         "createTime": formatted_create_time,
         "source": row["createUser"],
         "status": row["status"],
-        "taskId": row["taskId"]
+        "taskId": row["taskId"],
+        "output": row["output"]
     }
 
 
@@ -95,6 +96,7 @@ def tst(shell_commands, task_id):
         }
         return response
         # 修改成return之后没有调试
+
     update_performance_record(task_id, result, output)
 
 
