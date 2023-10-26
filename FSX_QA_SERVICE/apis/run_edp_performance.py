@@ -4,10 +4,10 @@ import time
 import json
 import random
 import shutil
-import zipfile
 import tempfile
 import threading
 import subprocess
+import tarfile
 from flask_cors import CORS
 from datetime import datetime, timedelta
 from flask_jwt_extended import jwt_required
@@ -36,13 +36,6 @@ def process_row(row):
         "status": row["status"],
         "taskId": row["taskId"]
     }
-
-
-# 日志压缩
-def create_zip_archive(file_paths, zip_file_path):
-    with zipfile.ZipFile(zip_file_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for file_path in file_paths:
-            zipf.write(file_path, os.path.basename(file_path))
 
 
 def tst(shell_commands, task_id):
@@ -81,12 +74,6 @@ def tst(shell_commands, task_id):
         return response
         # 修改成return之后没有调试
     update_performance_record(task_id, result)
-
-    # # 执行压力测试的逻辑
-    # print(f"Executing commands for task {task_id} created by {creator}: {shell_commands}")
-    # # 模拟耗时操作
-    # time.sleep(10)
-    # print(f"Task {task_id} completed.")
 
 
 # 向PerformanceRecord插入数据
@@ -176,18 +163,18 @@ def run_edp_performance():
     return jsonify(response), 200
 
 
-@app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['GET'])
-@jwt_required()
+@app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['POST'])
+# @jwt_required()
 def download_performance_log_file():
-    # 唯一参数时taskid，edp_performance_client脚本中需要将日志文件绑定taskid，然后再将其下载
-    data = request.args.to_dict()
+    data = request.get_data()
     # 判断传参是否为空
-    if data is None or data == '':
+    if data is None:
         return jsonify({"Error": "Invalid file path"}), 400
 
     # 创建一个空数组用于存放所有日志的路径
     file_paths = []
-    taskid = data["taskId"]
+    datas = json.loads(data)
+    taskid = datas["taskId"]
     # 日志地址
     log_path = "edp_fix_client/initiator/edp_performance_test/logs"
     # 遍历日志目录下的所有文件
@@ -200,18 +187,29 @@ def download_performance_log_file():
     # 创建临时目录用于存放压缩文件
     temp_dir = tempfile.mkdtemp()
 
+    # # 记录打包时间
+    # zip_time = datetime.now()
+    # zip_name = "performance_logs_{}.zip".format(zip_time.strftime("%Y-%m-%d_%H-%M-%S"))
+    # zip_file_path = os.path.join(temp_dir, zip_name)
+    # # 创建压缩文件
+    # create_zip_archive(file_paths, zip_file_path)
     # 记录打包时间
-    zip_time = datetime.now()
-    zip_name = "performance_logs_{}.zip".format(zip_time.strftime("%Y-%m-%d_%H-%M-%S"))
-    zip_file_path = os.path.join(temp_dir, zip_name)
-    # 创建压缩文件
-    create_zip_archive(file_paths, zip_file_path)
+    tar_time = datetime.now()
+    tar_name = "performance_logs_{}.zip".format(tar_time.strftime("%Y-%m-%d_%H-%M-%S"))
+    tar_file_path = os.path.join(temp_dir, tar_name)
+    # 创建一个 Tar 文件
+    with tarfile.open(tar_file_path, 'w') as tar:
+        # 将每个日志文件添加到 Tar 文件中
+        for log_file in file_paths:
+            file_path = os.path.join(log_file)
+            arc_name = os.path.basename(log_file)  # 获取文件的基本名称
+            tar.add(file_path, arcname=arc_name)
 
     # 创建响应对象
-    response = make_response(send_file(zip_file_path, as_attachment=True))
+    response = make_response(send_file(tar_file_path, as_attachment=True))
 
     # 设置 Content-Disposition 头部字段
-    response.headers['Content-Disposition'] = 'attachment; filename={}'.format(zip_name)
+    response.headers['Content-Disposition'] = 'attachment; filename={}'.format(tar_name)
 
     # 删除临时目录及其内容
     shutil.rmtree(temp_dir)
