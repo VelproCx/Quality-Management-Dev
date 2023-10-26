@@ -51,6 +51,8 @@ def tst(shell_commands, task_id):
         outputs_stdout, outputs_stderr = process.communicate()
         statuses.append(status)
         outputs.append((outputs_stdout, outputs_stderr))
+        print(statuses)
+        print(outputs)
 
     except subprocess.CalledProcessError as e:
         output = e.stderr.strip()
@@ -187,12 +189,6 @@ def download_performance_log_file():
     # 创建临时目录用于存放压缩文件
     temp_dir = tempfile.mkdtemp()
 
-    # # 记录打包时间
-    # zip_time = datetime.now()
-    # zip_name = "performance_logs_{}.zip".format(zip_time.strftime("%Y-%m-%d_%H-%M-%S"))
-    # zip_file_path = os.path.join(temp_dir, zip_name)
-    # # 创建压缩文件
-    # create_zip_archive(file_paths, zip_file_path)
     # 记录打包时间
     tar_time = datetime.now()
     tar_name = "performance_logs_{}.zip".format(tar_time.strftime("%Y-%m-%d_%H-%M-%S"))

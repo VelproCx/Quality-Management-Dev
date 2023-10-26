@@ -34,7 +34,7 @@ def edp_test_case_list():
     return testcase
 
 
-@app_edp_test_case.route('/api/edp_test_case/read_write_case', methods=['GET'])
+@app_edp_test_case.route('/api/edp_test_case/view', methods=['GET'])
 @jwt_required()
 def view_edp_case():
     data = request.args.to_dict()
@@ -65,7 +65,7 @@ def view_edp_case():
         return jsonify({"Error": "The file is not found"}), 404
 
 
-@app_edp_test_case.route('/api/edp_test_case/read_write_case', methods=['POST'])
+@app_edp_test_case.route('/api/edp_test_case/edit', methods=['POST'])
 @jwt_required()
 def edit_edp_case():
     try:

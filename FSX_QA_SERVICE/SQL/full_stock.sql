@@ -14,7 +14,7 @@ CREATE TABLE `FullStockRecord` (
   `execution_time` time AS (TIMEDIFF(end_date, start_date)) STORED COMMENT '执行时长',
   `start_date` datetime COMMENT '执行开始时间',
   `end_date` datetime COMMENT '执行结束时间',
-  `createDate` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `createTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
