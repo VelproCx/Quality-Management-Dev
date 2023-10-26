@@ -25,6 +25,7 @@ def process_row(row):
         "updateTime": formatted_create_time
     }
 
+
 # 读取文件夹中所有文件
 def get_case_list(path):
     file_list = []
@@ -85,7 +86,11 @@ def edp_test_case_list():
 
         data = [process_row(row) for row in result]
 
-        return jsonify(data), 200
+        response = {
+            "data": data
+        }
+
+        return jsonify(response), 200
 
     except Exception as e:
         print("Error while inserting into the database:", e)
