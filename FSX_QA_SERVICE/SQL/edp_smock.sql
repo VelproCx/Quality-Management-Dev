@@ -11,11 +11,14 @@ CREATE TABLE `SmokeRecord` (
   `status` varchar(20) DEFAULT NULL COMMENT '执行状态 1-success 2-fail 3-error',
   `type` tinyint(1) DEFAULT NULL COMMENT '项目类型 1-edp 2-rolx 3-rex',
   `createUser` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '创建人',
-  `execution_time` time AS (TIMEDIFF(end_date, start_date)) STORED COMMENT '执行时长',
-  `start_date` datetime COMMENT '执行开始时间',
-  `end_date` datetime COMMENT '执行结束时间',
-  `createDate` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `CreateTime` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `log_file` longblob COMMENT 'log文件',
+  `excel_file` longblob COMMENT 'excel文件',
+  `output` varchar(255) DEFAULT NULL COMMENT '返回信息',
+  `report_filename` varchar(255) DEFAULT NULL,
+  `log_filename` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE KEY `id_UNIQUE` (`id`),
+  UNIQUE KEY `taskId_UNIQUE` (`taskId`)
+) ENGINE=InnoDB AUTO_INCREMENT=99 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
-SET FOREIGN_KEY_CHECKS = 1;
