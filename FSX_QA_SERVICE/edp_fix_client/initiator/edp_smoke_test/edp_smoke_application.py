@@ -15,7 +15,6 @@ import json
 __SOH__ = chr(1)
 
 
-
 class Application(fix.Application):
     orderID = 0
     execID = 0
@@ -412,8 +411,10 @@ def main():
         else:
             Data = {}
 
-        # report
-        setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/edp_smoke_test_Report.log')
+        # report'
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        log_filename = f"edp_report_{current_date}.log"
+        setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename)
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
@@ -436,7 +437,7 @@ def main():
             application.insert_order_request(Data)
         elif Data["ActionType"] == "CancelAck":
             application.order_cancel_request(Data)
-        sleep_duration = timedelta()
+        sleep_duration = timedelta(1)
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)
