@@ -108,7 +108,7 @@ def insert_performance_record(task_id, creator, status):
     cursor = connection.cursor()
 
     # 构建SQL语句
-    sql = "INSERT INTO `PerformanceRecord` (`taskId`, `type`, `createUser`, `status`) " \
+    sql = "INSERT INTO `qa_admin`.PerformanceRecord (`taskId`, `type`, `createUser`, `status`) " \
           "VALUES (%s, %s, %s, %s)"
     values = (task_id, 1, creator, status)
 
@@ -129,7 +129,7 @@ def update_performance_record(task_id, status, output):
     # 创建游标
     cursor = connection.cursor()
     # 构建sql语句
-    sql = "UPDATE `PerformanceRecord` SET `status` = %s , `output` = %s WHERE `taskId` = %s"
+    sql = "UPDATE `qa_admin`.PerformanceRecord SET `status` = %s , `output` = %s WHERE `taskId` = %s"
     values = (status, output, task_id)
     try:
         cursor.execute(sql, values)
@@ -182,7 +182,7 @@ def run_edp_performance():
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/download_performance_logs', methods=['POST'])
-# @jwt_required()
+@jwt_required()
 def download_performance_log_file():
     data = request.get_data()
     # 判断传参是否为空
