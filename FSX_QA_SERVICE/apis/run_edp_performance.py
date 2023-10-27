@@ -34,7 +34,8 @@ def process_row(row):
         "createTime": formatted_create_time,
         "source": row["createUser"],
         "status": row["status"],
-        "taskId": row["taskId"]
+        "taskId": row["taskId"],
+        "output": row["output"]
     }
 
 
@@ -46,13 +47,33 @@ def tst(shell_commands, task_id):
         statuses = []
         outputs = []
         process.wait()
-        result = "completed"
         status = process.returncode
         outputs_stdout, outputs_stderr = process.communicate()
         statuses.append(status)
+        # 将outputs_stdout转换成
         outputs.append((outputs_stdout, outputs_stderr))
-        print(statuses)
-        print(outputs)
+        opts = outputs_stdout.decode('utf-8')
+        stderr = outputs_stderr.decode('utf-8')
+        output = opts
+
+        if 'Successful Logon to session' in opts and 'logout' in opts:
+            result = "completed"
+
+        elif stderr == '':
+            result = "error"
+            output = "connect error, please check the script"
+
+        else:
+            result = "error"
+            output = stderr.split('Error:', 1)[-1].strip()
+
+    except Exception as e:
+        result = "error"
+        response = {
+            "result": result,
+            "output": str(e)
+        }
+        return response
 
     except subprocess.CalledProcessError as e:
         output = e.stderr.strip()
@@ -75,7 +96,8 @@ def tst(shell_commands, task_id):
         }
         return response
         # 修改成return之后没有调试
-    update_performance_record(task_id, result)
+
+    update_performance_record(task_id, result, output)
 
 
 # 向PerformanceRecord插入数据
@@ -101,14 +123,14 @@ def insert_performance_record(task_id, creator, status):
         connection.close()
 
 
-def update_performance_record(task_id, status):
+def update_performance_record(task_id, status, output):
     # 从数据库池获取数据库连接
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
     # 构建sql语句
-    sql = "UPDATE `PerformanceRecord` SET `status`  = %s WHERE `taskId` = %s"
-    values = (status, task_id)
+    sql = "UPDATE `PerformanceRecord` SET `status` = %s , `output` = %s WHERE `taskId` = %s"
+    values = (status, output, task_id)
     try:
         cursor.execute(sql, values)
         connection.commit()
@@ -118,12 +140,6 @@ def update_performance_record(task_id, status):
     finally:
         cursor.close()
         connection.close()
-    response = {
-        'taskId': task_id,
-        'status': status,
-        'type': 1
-    }
-    return response
 
 
 @app_run_edp_performance.route('/api/edp_performance_list/run_edp_performance', methods=['POST'])
@@ -220,16 +236,6 @@ def edp_performance_list():
     cursor = connection.cursor()
     data = request.args.to_dict()
     if data is not None and data != '':
-        # if 'pageSize' in data and data['pageSize'] != "":
-        #     str_page_size = data["pageSize"]
-        #     page_size = int(str_page_size)
-        # else:
-        #     page_size = 10
-        # if 'current' in data and data['current'] != "":
-        #     str_current = data["current"]
-        #     current = int(str_current)
-        # else:
-        #     current = 1
         sql = ""
         if "source" in data and data["source"] != "":
             sql += " AND `createUser` = '{}'".format(data["source"])
@@ -271,7 +277,7 @@ def edp_performance_list():
             cursor.execute(count_sql)
             total_count = cursor.fetchone()["total_count"]
             # 查询数据
-            data_sql = "SELECT `createDate`, `status`, `createUser`, `taskId` " \
+            data_sql = "SELECT `createTime`, `status`, `createUser`, `taskId` " \
                        "FROM `qa_admin`.PerformanceRecord " \
                        "WHERE `type` = 1;"
             cursor.execute(data_sql)

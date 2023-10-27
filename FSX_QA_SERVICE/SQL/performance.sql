@@ -16,7 +16,7 @@ CREATE TABLE `PerformanceRecord` (
   `end_date` datetime COMMENT '执行结束时间',
   `createDate` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='压测模块';
 
 SET FOREIGN_KEY_CHECKS = 1;
 
@@ -25,3 +25,9 @@ SET FOREIGN_KEY_CHECKS = 1;
 # 20231023，修改列名
 ALTER TABLE `PerformanceRecord`
 CHANGE COLUMN createDate createTime datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间';
+
+# 20231026，新增output列,
+# 用于储存shell脚本fsx连接情况，通过改字段判断脚本是否执行成功，如果登录登出字段没有在output中，则判定shell脚本执行失败
+
+ALTER TABLE `PerformanceRecord`
+ADD COLUMN output VARCHAR(5000) DEFAULT NULL COMMENT '记录shell脚本连接情况';

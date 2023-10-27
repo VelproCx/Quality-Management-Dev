@@ -16,22 +16,89 @@ app_edp_test_case = Blueprint("edp_test_case", __name__)
 CORS(app_edp_test_case, supports_credentials=True)
 
 
+def process_row(row):
+    # 将 datetime 对象 row['CreateTime'] 格式化为 %Y-%m-%d %H:%M:%S 的时间字符串
+    formatted_create_time = row['updateTime'].strftime("%Y-%m-%d %H:%M:%S")
+    return {
+        "source": row["source"],
+        "caseName": row["caseName"],
+        "updateTime": formatted_create_time
+    }
+
+
 # 读取文件夹中所有文件
-def get_case_file_list(path):
+def get_case_list(path):
     file_list = []
     for file_name in os.listdir(path):
-        file_path = os.path.join(path, file_name)
-        if os.path.isfile(file_path):
-            file_list.append(file_path)
+        if file_name.endswith(".json"):
+            file_list.append(file_name)
     return file_list
 
 
-@app_edp_test_case.route('/api/edp_test_case', methods=['POST'])
-# @jwt_required()
+def insert_test_case_record(case_file):
+    connect = global_connection_pool.connection()
+    cursor = connect.cursor()
+    try:
+        db_case_file = []
+        update_time = datetime.now()
+        select = "SELECT `caseName` From `qa_admin`.TesecaseRecord"
+        cursor.execute(select)
+        rows = cursor.fetchall()
+        for row in rows:
+            case_name = row["caseName"]
+            db_case_file.append(case_name)
+        if case_file == db_case_file:
+            pass
+        else:
+            for cf in case_file:
+                if cf not in db_case_file:
+                    insert = "INSERT INTO `qa_admin`.TesecaseRecord (`caseName`, `updateTime`) " \
+                             "VALUES (%s, %s)"
+                    values = (cf, update_time)
+
+                    cursor.execute(insert, values)
+                    connect.commit()
+
+    except Exception as e:
+        print("Error while inserting into the database:", e)
+        return jsonify({"error": str(e)})
+
+    finally:
+        cursor.close()
+        connect.close()
+
+
+@app_edp_test_case.route('/api/edp_test_case', methods=['GET'])
+@jwt_required()
 def edp_test_case_list():
     case_path = "edp_fix_client/testcases"
-    testcase = get_case_file_list(case_path)
-    return testcase
+    # 获取testcase中的所有case文件
+    testcase = get_case_list(case_path)
+    # 检查testcase中文件是否已经写入db，如果没有，则先写入db
+    insert_test_case_record(testcase)
+
+    connect = global_connection_pool.connection()
+    cursor = connect.cursor()
+    try:
+        slt = "SELECT * FROM `qa_admin`.TesecaseRecord"
+        cursor.execute(slt)
+        result = cursor.fetchall()
+
+        data = [process_row(row) for row in result]
+
+        response = {
+            "data": data
+        }
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        print("Error while inserting into the database:", e)
+        return jsonify({"error": str(e)})
+
+    finally:
+        cursor.close()
+        connect.close()
 
 
 @app_edp_test_case.route('/api/edp_test_case/view', methods=['GET'])
