@@ -373,18 +373,18 @@ class Application(fix.Application):
         fix.Session.sendToTarget(msg, self.sessionID)
         return msg
 
-    def read_config(self, Sender, Target, Host, Port):
-        # 读取并修改配置文件
-        config = configparser.ConfigParser(allow_no_value=True)
-        config.optionxform = str  # 保持键的大小写
-        config.read('edp_smoke_client.cfg')
-        config.set('SESSION', 'SenderCompID', Sender)
-        config.set('SESSION', 'TargetCompID', Target)
-        config.set('SESSION', 'SocketConnectHost', Host)
-        config.set('SESSION', 'SocketConnectPort', Port)
-
-        with open('edp_smoke_client.cfg', 'w') as configfile:
-            config.write(configfile)
+    # def read_config(self, Sender, Target, Host, Port):
+    #     # 读取并修改配置文件
+    #     config = configparser.ConfigParser(allow_no_value=True)
+    #     config.optionxform = str  # 保持键的大小写
+    #     config.read('/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg')
+    #     config.set('SESSION', 'SenderCompID', Sender)
+    #     config.set('SESSION', 'TargetCompID', Target)
+    #     config.set('SESSION', 'SocketConnectHost', Host)
+    #     config.set('SESSION', 'SocketConnectPort', Port)
+    #
+    #     with open('/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
+    #         config.write(configfile)
 
 
 def main():
@@ -394,18 +394,18 @@ def main():
         # 使用argparse的add_argument方法进行传参
         parser = argparse.ArgumentParser()  # 创建对象
         parser.add_argument('--account', default='RSIT_EDP_ACCOUNT_1', help='choose account to use for test')
-        parser.add_argument('--Sender', default='RSIT_EDP_1', help='choose Sender to use for test')
-        parser.add_argument('--Target', default='FSX_SIT_EDP', help='choose Target to use for test')
-        parser.add_argument('--Host', default='54.250.107.1', help='choose Host to use for test')
-        parser.add_argument('--Port', default='5001', help='choose Port to use for test')
+        # parser.add_argument('--Sender', default='RSIT_EDP_1', help='choose Sender to use for test')
+        # parser.add_argument('--Target', default='FSX_SIT_EDP', help='choose Target to use for test')
+        # parser.add_argument('--Host', default='54.250.107.1', help='choose Host to use for test')
+        # parser.add_argument('--Port', default='5001', help='choose Port to use for test')
         parser.add_argument('--Data', help='please enter send data')
 
         args = parser.parse_args()  # 解析参数
         account = args.account
-        Sender = args.Sender
-        Target = args.Target
-        Host = args.Host
-        Port = args.Port
+        # Sender = args.Sender
+        # Target = args.Target
+        # Host = args.Host
+        # Port = args.Port
 
         if args.Data:
             Data = json.loads(args.Data)
@@ -413,17 +413,17 @@ def main():
             Data = {}
 
         # report
-        setup_logger('logfix', 'edp_smoke_test_Report.log')
+        setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/edp_smoke_test_Report.log')
         logfix = logging.getLogger('logfix')
 
         cfg = Application()
-        cfg.Sender = Sender
-        cfg.Target = Target
-        cfg.Host = Host
-        cfg.Port = Port
-        cfg.read_config(Sender, Target, Host, Port)
+        # cfg.Sender = Sender
+        # cfg.Target = Target
+        # cfg.Host = Host
+        # cfg.Port = Port
+        # cfg.read_config(Sender, Target, Host, Port)
 
-        settings = fix.SessionSettings("edp_smoke_client.cfg")
+        settings = fix.SessionSettings("edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg")
         application = Application()
         application.account = account
         store_factory = fix.FileStoreFactory(settings)
@@ -436,7 +436,7 @@ def main():
             application.insert_order_request(Data)
         elif Data["ActionType"] == "CancelAck":
             application.order_cancel_request(Data)
-        sleep_duration = timedelta(minutes=1)
+        sleep_duration = timedelta()
         end_time = datetime.now() + sleep_duration
         while datetime.now() < end_time:
             time.sleep(1)

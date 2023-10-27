@@ -1,6 +1,8 @@
 # -*- coding:utf-8 -*-
 import secrets
 from flask import Flask, request, jsonify
+
+# from apis.run_edp_smoke import app_run_edp_smoke
 from apis.run_edp_regression import app_run_edp_regression
 from apis.Application import app_application
 from apis.user import app_user
@@ -31,6 +33,7 @@ app.register_blueprint(app_user)
 app.register_blueprint(app_run_edp_performance)
 app.register_blueprint(app_run_edp_full_stock)
 app.register_blueprint(app_run_edp_regression)
+# app.register_blueprint(app_run_edp_smoke)
 app.register_blueprint(app_edp_test_case)
 app.register_blueprint(app_run_rolx_regression)
 
