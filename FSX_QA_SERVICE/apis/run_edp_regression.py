@@ -373,23 +373,3 @@ def download_report_file():
     finally:
         cursor.close()
         connection.close()
-
-
-# 在线编辑case
-@app_run_edp_regression.route('/api/update_edp_testcases', methods=['POST'])
-@jwt_required()
-def update_edp_testcases():
-    data = request.get_json()  # 获取请求中的json数据
-
-    # 读取json文件
-    with open('../edp_fix_client/testcases/test.json', 'r') as file:
-        json_data = json.load(file)
-
-    # 更新json数据
-    json_data.update(data)
-
-    # 保存更新后的json数据到文件
-    with open('../edp_fix_client/testcases/test.json', 'w') as file:
-        json.dump(json_data, file, indent=4)
-
-    return jsonify({'message': 'JSON file updated and saved successfully'}), 200
