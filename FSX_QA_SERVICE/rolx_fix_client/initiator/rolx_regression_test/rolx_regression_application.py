@@ -87,9 +87,9 @@ class Application(fix.Application):
         # 导入具有完整文件路径的模块
         module1 = SourceFileLoader(module_name, module_path).load_module()
         # 将JSON数据写入文件
-        with open('logs/recv_data.json', 'w') as file:
+        with open('rolx_fix_client/initiator/rolx_regression_test/logs/recv_data.json', 'w') as file:
             file.write(json_data)
-        self.Result = module1.compare_field_values('rolx_fix_client/testcases/test.json',
+        self.Result = module1.compare_field_values('rolx_fix_client/testcases/ROL_Functional_Test_Matrix.json',
                                                    'rolx_fix_client/initiator/rolx_regression_test/logs/recv_data.json',
                                                    'ordstatus')
         print("Session ({}) logout !".format(sessionID.toString()))
@@ -520,8 +520,8 @@ class Application(fix.Application):
         generation = module1.generation
 
         """Run"""
-        with open('rolx_fix_client/testcases/test.json', 'r') as f_json:
-            generation('rolx_fix_client/testcases/test.json', 'rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename)
+        with open('rolx_fix_client/testcases/ROL_Functional_Test_Matrix.json', 'r') as f_json:
+            generation('rolx_fix_client/testcases/ROL_Functional_Test_Matrix.json', 'rolx_fix_client/initiator/rolx_regression_test/report/' + report_filename)
             case_data_list = json.load(f_json)
             time.sleep(2)
 

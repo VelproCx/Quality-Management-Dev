@@ -1,14 +1,10 @@
-import asyncio
 import json
-import os
-import platform
-import signal
 import tempfile
 import threading
 import time
 import random
 import traceback
-from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context, make_response
+from flask import send_file, jsonify, request, Blueprint, make_response
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
@@ -148,7 +144,6 @@ def execute_task(shell_commands, task_id):
         output = e  # 使用异常信息作为错误信息
         status = "error"
 
-    print(task_id, status, output)
     # 更新数据库
     update_regression_record(task_id, status, output)
 
@@ -275,25 +270,33 @@ def edp_regression_list():
 
 
 # 下载 edp_report.log
-@app_run_edp_regression.route('/api/edp_regression_list/download_edp_log/<task_id>', methods=['GET'])
+@app_run_edp_regression.route('/api/edp_regression_list/download_edp_log', methods=['POST'])
 @jwt_required()
-def download_log_file(task_id):
-    if not task_id:
-        return 'task_id is missing', 400
+def download_log_file():
+    data = request.get_data()
+    datas = json.loads(data)
 
+    if data is None or "taskId" not in datas:
+        return 'Invalid data', 400
+
+    task_id = datas["taskId"]
     try:
         # 连接数据库
         connection = global_connection_pool.connection()
         cursor = connection.cursor()
 
         # 查询指定任务的 log_file
-        query = "SELECT log_file FROM qa_admin.RegressionRecord WHERE taskId = %s"
+        query = "SELECT log_file, log_filename FROM qa_admin.RegressionRecord WHERE taskId = %s"
         cursor.execute(query, (task_id,))
         result = cursor.fetchone()
 
         if result is None:
             return 'File not found', 404
 
+        if result['log_file'] is None or result['log_filename'] is None:
+            return 'Log file content not found', 404
+
+        log_filename = result['log_filename']
         log_file_content = result['log_file']
 
         # 保存日志内容到临时文件
@@ -320,24 +323,33 @@ def download_log_file(task_id):
 
 
 # 下载 edp_report.xlsx
-@app_run_edp_regression.route('/api/edp_regression_list/download_edp_report/<task_id>', methods=['GET'])
+@app_run_edp_regression.route('/api/edp_regression_list/download_edp_report', methods=['POST'])
 @jwt_required()
-def download_report_file(task_id):
-    if not task_id:
-        return 'task_id is missing', 400
+def download_report_file():
+    data = request.get_data()
+    datas = json.loads(data)
+    if data is None or "taskId" not in datas:
+        return 'Invalid data', 400
+
+    task_id = datas["taskId"]
+    if data is None:
+        return 'Invalid file path', 400
     try:
         # 连接数据库
         connection = global_connection_pool.connection()
         cursor = connection.cursor()
 
         # 查询指定任务的 log_file
-        query = "SELECT excel_file FROM qa_admin.RegressionRecord WHERE taskId = %s"
+        query = "SELECT excel_file,report_filename FROM qa_admin.RegressionRecord WHERE taskId = %s"
         cursor.execute(query, (task_id,))
         result = cursor.fetchone()
-
         if result is None:
             return 'File not found', 404
 
+        if result['report_filename'] is None or result['excel_file'] is None:
+            return 'report file content not found', 404
+
+        report_filename = result['report_filename']
         excel_file_content = result['excel_file']
 
         # 保存日志内容到临时文件
@@ -361,23 +373,3 @@ def download_report_file(task_id):
     finally:
         cursor.close()
         connection.close()
-
-
-# 在线编辑case
-@app_run_edp_regression.route('/api/update_edp_testcases', methods=['POST'])
-@jwt_required()
-def update_edp_testcases():
-    data = request.get_json()  # 获取请求中的json数据
-
-    # 读取json文件
-    with open('../edp_fix_client/testcases/test.json', 'r') as file:
-        json_data = json.load(file)
-
-    # 更新json数据
-    json_data.update(data)
-
-    # 保存更新后的json数据到文件
-    with open('../edp_fix_client/testcases/test.json', 'w') as file:
-        json.dump(json_data, file, indent=4)
-
-    return jsonify({'message': 'JSON file updated and saved successfully'}), 200

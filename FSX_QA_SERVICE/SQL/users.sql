@@ -11,7 +11,7 @@ CREATE TABLE `UsersRecord` (
   `role` varchar(120) DEFAULT NULL COMMENT '角色',
   `createdTime` datetime COMMENT '账号创建时间',
   `updateTime` datetime COMMENT '账号修改标志',
-  `isDelete` BOOL DEFAULT FALSE COMMENT '软删除标志',
+  `isDelete` BOOL DEFAULT FALSE COMMENT '软删除标志0-未删除， 1-已删除',
   `token` varchar(1000) DEFAULT NULL COMMENT '令牌',
 
   PRIMARY KEY (`id`)
@@ -22,3 +22,6 @@ SET FOREIGN_KEY_CHECKS = 1;
 # 20231023，修改列名
 ALTER TABLE `UsersRecord`
 CHANGE COLUMN createdTime createTime datetime COMMENT '账号创建时间';
+
+ALTER TABLE `UsersRecord`
+CHANGE COLUMN isDelete isDelete BOOL DEFAULT FALSE COMMENT '软删除标志0-未删除， 1-已删除';

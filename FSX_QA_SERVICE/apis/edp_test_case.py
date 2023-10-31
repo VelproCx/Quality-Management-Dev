@@ -39,6 +39,7 @@ def insert_test_case_record(case_file):
     connect = global_connection_pool.connection()
     cursor = connect.cursor()
     try:
+        # 查询出数据库中所有已记录的case
         db_case_file = []
         update_time = datetime.now()
         select = "SELECT `caseName` From `qa_admin`.TesecaseRecord"
@@ -47,9 +48,11 @@ def insert_test_case_record(case_file):
         for row in rows:
             case_name = row["caseName"]
             db_case_file.append(case_name)
+        # 循环判断testcase中的case文件是否已录入数据库
         if case_file == db_case_file:
             pass
         else:
+            # 循环将未记录的数据库存入数据库
             for cf in case_file:
                 if cf not in db_case_file:
                     insert = "INSERT INTO `qa_admin`.TesecaseRecord (`caseName`, `updateTime`) " \
