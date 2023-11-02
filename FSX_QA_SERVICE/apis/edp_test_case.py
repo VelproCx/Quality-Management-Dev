@@ -7,7 +7,7 @@ from flask_cors import CORS
 from datetime import datetime
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 from flask_jwt_extended import jwt_required
-from flask import send_file, Response, request, jsonify, Blueprint, make_response
+from flask import request, jsonify, Blueprint
 app_edp_test_case = Blueprint("edp_test_case", __name__)
 CORS(app_edp_test_case, supports_credentials=True)
 
@@ -78,7 +78,7 @@ def edp_test_case_list():
     connect = global_connection_pool.connection()
     cursor = connect.cursor()
     try:
-        slt = "SELECT * FROM `qa_admin`.TesecaseRecord"
+        slt = "SELECT * FROM `qa_admin`.TesecaseRecord WHERE `isDelete` = 0"
         cursor.execute(slt)
         result = cursor.fetchall()
         data = [process_row(row) for row in result]
@@ -100,8 +100,8 @@ def view_edp_case():
     data = request.args.to_dict()
     if data is None or data == '':
         return jsonify({"Error": "Invalid request data"}), 400
-    file_name = data["filename"]
-    case_file_path = 'edp_fix_client/testcases/{}.json'.format(file_name)
+    file_name = data["caseName"]
+    case_file_path = 'edp_fix_client/testcases/{}'.format(file_name)
     if os.path.exists(case_file_path):
         # 读取json文件
         with open(case_file_path, "r") as file:
@@ -109,17 +109,13 @@ def view_edp_case():
             data = json.loads(file_content)
         # 获取testCase列表
         test_cases = data["testCase"]
-        # 统计Symbol数量
-        symbol_count = len([test_case["Symbol"] for test_case in test_cases])
-        case_count = "case_count: {}".format(symbol_count)
         response = []
         for test_case in test_cases:
             result = {
                 "case_content": test_case
             }
             response.append(result)
-
-        return jsonify(case_count, response), 200
+        return jsonify(response), 200
 
     else:
         return jsonify({"Error": "The file is not found"}), 404
@@ -132,17 +128,17 @@ def edit_edp_case():
     cursor = connection.cursor()
     try:
         datas = request.get_json()
-        file_name = datas["file_name"]
-        file_path = "edp_fix_client/testcases/{}.json".format(file_name)
+        file_name = datas["caseName"]
+        source = datas["source"]
+        file_path = "edp_fix_client/testcases/{}".format(file_name)
         if os.path.exists(file_path):
             # 如果文件存在，将数据保存到文件中
             data = datas["data"]
             with open(file_path, "w") as file:
                 json.dump(data, file)
             update_time = datetime.now()
-            update = "UPDATE `qa_admin`.TesecaseRecord SET `updateTime` = %s" \
-                     "WHERE `caseName` = %s"
-            value = (update_time, file_name)
+            update = "UPDATE `qa_admin`.TesecaseRecord SET `updateTime` = %s, `source` = %s WHERE `caseName` = %s"
+            value = (update_time, source, file_name)
             cursor.execute(update, value)
             connection.commit()
             return jsonify({"msg": "Test case save successfully"}), 200
@@ -163,14 +159,14 @@ def delete_case():
     datas = request.get_data()
     data = json.loads(datas)
     if "file_name" in data and data["file_name"] != "":
-        file_name = data["file_name"]
+        file_name = data["caseName"]
         try:
-            sql = "SELECT * FROM `qa_admin`.TesecaseRecord WHERE caseName = '{}.json'".format(file_name)
+            sql = "SELECT * FROM `qa_admin`.TesecaseRecord WHERE caseName = '{}'".format(file_name)
             cursor.execute(sql)
             result = cursor.fetchall()
             if result:
                 delete_sql = "UPDATE 'qa_admin'.TesecaseRecord SET `isDelete`= TRUE " \
-                             "WHERE `caseName` = '{}.json'".format(file_name)
+                             "WHERE `caseName` = '{}'".format(file_name)
                 cursor.execute(delete_sql)
                 connection.commit()
                 return jsonify({"msg": "Delete case succeed"}), 200
@@ -183,3 +179,31 @@ def delete_case():
         return jsonify({"error": "Case does not exist"}), 400
 
 
+@app_edp_test_case.route("/api/edp_test_case/create", methods=["POST"])
+@jwt_required()
+def create_case():
+    datas = request.get_data()
+    if datas is not None:
+        data = json.loads(datas)
+        case_name = data["caseName"]
+        source = data["source"]
+        data = data["data"]
+        file_path = "edp_fix_client/testcases/{}".format(case_name)
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=4)
+            time.sleep(1)
+
+        connection = global_connection_pool.connection()
+        cursor = connection.cursor()
+        try:
+            sql = "INSERT INTO `qa_admin`.TesecaseRecord (`caseName`, `source`) " \
+                  "VALUES ({}, {})".format(case_name, source)
+            cursor.execute(sql)
+            connection.commit()
+            return jsonify({"msg": "Create test case file succeed"}), 200
+        except Exception as e:
+            print("Error while inserting into the database:", e)
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cursor.close()
+            connection.close()
