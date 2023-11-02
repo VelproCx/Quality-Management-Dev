@@ -149,7 +149,7 @@ def edit_edp_case():
 
 
 @app_edp_test_case.route('/api/edp_test_case/delete', methods=["POST"])
-# @jwt_required()
+@jwt_required()
 def delete_case():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
@@ -162,7 +162,8 @@ def delete_case():
             cursor.execute(sql)
             result = cursor.fetchall()
             if result:
-                delete_sql = "UPDATE 'qa_admin'.TesecaseRecord SET `isDelete` = TRUE WHERE `caseName` = '{}'".format(file_name)
+                delete_sql = "UPDATE `qa_admin`.TesecaseRecord SET `isDelete` = TRUE " \
+                             "WHERE `caseName` = '{}';".format(file_name)
                 cursor.execute(delete_sql)
                 connection.commit()
                 return jsonify({"msg": "Delete case succeed"}), 200
@@ -178,12 +179,11 @@ def delete_case():
 @app_edp_test_case.route("/api/edp_test_case/create", methods=["POST"])
 @jwt_required()
 def create_case():
-    datas = request.get_data()
+    datas = request.get_json()
     if datas is not None:
-        data = json.loads(datas)
-        case_name = data["caseName"]
-        source = data["source"]
-        data = data["data"]
+        case_name = datas["caseName"]
+        source = datas["source"]
+        data = datas["data"]
         file_path = "edp_fix_client/testcases/{}".format(case_name)
         with open(file_path, "w") as f:
             json.dump(data, f, indent=4)
@@ -193,7 +193,7 @@ def create_case():
         cursor = connection.cursor()
         try:
             sql = "INSERT INTO `qa_admin`.TesecaseRecord (`caseName`, `source`) " \
-                  "VALUES ({}, {})".format(case_name, source)
+                  "VALUES ('{}', '{}')".format(case_name, source)
             cursor.execute(sql)
             connection.commit()
             return jsonify({"msg": "Create test case file succeed"}), 200
@@ -203,3 +203,5 @@ def create_case():
         finally:
             cursor.close()
             connection.close()
+    else:
+        return jsonify({"error": "Data is None"})
