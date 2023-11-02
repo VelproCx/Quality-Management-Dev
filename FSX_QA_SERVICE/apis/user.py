@@ -51,9 +51,9 @@ def search_user():
                     return jsonify(response), 200
 
                 else:
-                    return jsonify({'message': 'Data does not exist'})
+                    return jsonify({'msg': 'Data does not exist'})
             except pymysql.Error as e:
-                return jsonify({'message': 'Search error', 'error': str(e)})
+                return jsonify({'msg': 'Search error', 'error': str(e)})
 
             finally:
                 cursor.close()
@@ -77,10 +77,10 @@ def search_user():
                 }
                 return jsonify(response), 200
             else:
-                return jsonify({'message': 'Data does not exist'})
+                return jsonify({'msg': 'Data does not exist'})
 
         except pymysql.Error as e:
-            return jsonify({'message': 'Search error', 'error': str(e)})
+            return jsonify({'msg': 'Search error', 'error': str(e)})
 
         finally:
             cursor.close()
@@ -104,15 +104,15 @@ def create_user():
         if 'name' in data and data['name'] != '':
             name = data.get('name')
         else:
-            return jsonify({'message': 'name cannot be empty'}), 400
+            return jsonify({'msg': 'name cannot be empty'}), 400
         if 'email' in data and data['email'] != '':
             email = data.get('email')
         else:
-            return jsonify({'message': 'email cannot be empty'}), 400
+            return jsonify({'msg': 'email cannot be empty'}), 400
         if 'password' in data and data['password'] != '':
             password = data.get('password')
         else:
-            return jsonify({'message': 'password cannot be empty'}), 400
+            return jsonify({'msg': 'password cannot be empty'}), 400
 
         # 执行SQL
         sql = "SELECT * FROM `UsersRecord` WHERE `email` = %s "
@@ -121,17 +121,17 @@ def create_user():
         result = cursor.fetchone()
 
         if result:
-            return jsonify({'message': 'User exists '}), 400
+            return jsonify({'msg': 'User exists '}), 400
         else:
             created_time = datetime.now()
             create_user_sql = \
-                "INSERT INTO `UsersRecord` (`name`, `email`, `password`, `createdTime`, `role`) " \
+                "INSERT INTO `UsersRecord` (`name`, `email`, `password`, `createTime`, `role`) " \
                 "VALUES (%s, %s, %s, %s, %s)"
             cursor.execute(create_user_sql, (name, email, password, created_time, data["role"]))
             connection.commit()
-            return jsonify({'message': 'Create user succeed'})
+            return jsonify({'msg': 'Create user succeed'})
     except pymysql.Error as e:
-        return jsonify({'message': 'Create user fail', 'error': str(e)}), 500
+        return jsonify({'msg': 'Create user fail', 'error': str(e)}), 500
     except json.JSONDecodeError as je:
         return jsonify({'decoding error': str(je)})
 
@@ -162,16 +162,16 @@ def delete_user():
                 delete_user_sql = "UPDATE `UsersRecord` SET `isDelete`= TRUE  WHERE `id` = %s"
                 cursor.execute(delete_user_sql, user_id)
                 connection.commit()
-                return jsonify({'message': 'Delete user succeed'})
+                return jsonify({'msg': 'Delete user succeed'}), 200
             else:
-                return jsonify({'message': 'User does not exist'})
+                return jsonify({'msg': 'User does not exist'})
         except pymysql.Error as e:
-            return jsonify({'message': 'Delete user fail', 'error': str(e)})
+            return jsonify({'msg': 'Delete user fail', 'error': str(e)}), 500
         finally:
             cursor.close()
             connection.close()
     else:
-        return jsonify({"error": "User does not exist"})
+        return jsonify({"error": "User does not exist"}), 400
 
 
 @app_user.route("/api/user/user-info", methods=["GET"])
@@ -195,7 +195,7 @@ def user_details():
                     }
                     return jsonify(response), 200
             except pymysql.Error as e:
-                return jsonify({'message': 'Description Failed to view user details', 'error': str(e)})
+                return jsonify({'msg': 'Description Failed to view user details', 'error': str(e)})
             finally:
                 cursor.close()
                 connection.close()
@@ -232,9 +232,9 @@ def update_user():
                     sql += " `updateTime` = '{}'".format(update_time)
                     cursor.execute("UPDATE `qa_admin`.`UsersRecord` SET {} WHERE `id` = {};".format(sql, user_id))
                     connection.commit()
-                    return jsonify({'message': 'Update user details succeed'}), 200
+                    return jsonify({'msg': 'Update user details succeed'}), 200
                 except pymysql.Error as e:
-                    return jsonify({'message': 'Update user fail', 'error': str(e)})
+                    return jsonify({'msg': 'Update user fail', 'error': str(e)})
                 finally:
                     cursor.close()
                     connection.close()

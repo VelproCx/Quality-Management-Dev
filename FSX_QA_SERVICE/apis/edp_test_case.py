@@ -1,17 +1,13 @@
 # -*- coding:utf-8 -*-
-import json
 import os
-import shutil
-import subprocess
-import zipfile
+import json
 import time
-import random
-import tempfile
+import pymysql
 from flask_cors import CORS
 from datetime import datetime
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
 from flask_jwt_extended import jwt_required
-from flask import send_file, Response, request, jsonify, Blueprint, make_response, stream_with_context
+from flask import send_file, Response, request, jsonify, Blueprint, make_response
 app_edp_test_case = Blueprint("edp_test_case", __name__)
 CORS(app_edp_test_case, supports_credentials=True)
 
@@ -79,26 +75,20 @@ def edp_test_case_list():
     testcase = get_case_list(case_path)
     # 检查testcase中文件是否已经写入db，如果没有，则先写入db
     insert_test_case_record(testcase)
-
     connect = global_connection_pool.connection()
     cursor = connect.cursor()
     try:
         slt = "SELECT * FROM `qa_admin`.TesecaseRecord"
         cursor.execute(slt)
         result = cursor.fetchall()
-
         data = [process_row(row) for row in result]
-
         response = {
             "data": data
         }
-
         return jsonify(response), 200
-
     except Exception as e:
         print("Error while inserting into the database:", e)
         return jsonify({"error": str(e)})
-
     finally:
         cursor.close()
         connect.close()
@@ -138,6 +128,8 @@ def view_edp_case():
 @app_edp_test_case.route('/api/edp_test_case/edit', methods=['POST'])
 @jwt_required()
 def edit_edp_case():
+    connection = global_connection_pool.connection()
+    cursor = connection.cursor()
     try:
         datas = request.get_json()
         file_name = datas["file_name"]
@@ -147,21 +139,47 @@ def edit_edp_case():
             data = datas["data"]
             with open(file_path, "w") as file:
                 json.dump(data, file)
+            update_time = datetime.now()
+            update = "UPDATE `qa_admin`.TesecaseRecord SET `updateTime` = %s" \
+                     "WHERE `caseName` = %s"
+            value = (update_time, file_name)
+            cursor.execute(update, value)
+            connection.commit()
             return jsonify({"msg": "Test case save successfully"}), 200
         else:
-            # 如果文件不存在，则询问是否新增文件
-            result = datas["operation"]
-            if result == "Yes":
-                with open(file_path, "a") as file:
-                    data = datas["data"]
-                    file.write(data)
-                return jsonify({"msg": "New case file created and data added"}), 200
-            elif result == "No":
-                return jsonify({"msg": "No new case file created"}), 200
-            else:
-                return jsonify({"msg": "The file does not exist and the modification has been abandoned"}), 200
-
+            return jsonify({"msg": "File does not exist"}), 404
     except IOError:
         return jsonify({"error": "Internal Server Error"}), 500
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app_edp_test_case.route('/api/edp_test_case/delete', methods=["POST"])
+@jwt_required()
+def delete_case():
+    connection = global_connection_pool.connection()
+    cursor = connection.cursor()
+    datas = request.get_data()
+    data = json.loads(datas)
+    if "file_name" in data and data["file_name"] != "":
+        file_name = data["file_name"]
+        try:
+            sql = "SELECT * FROM `qa_admin`.TesecaseRecord WHERE caseName = '{}.json'".format(file_name)
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            if result:
+                delete_sql = "UPDATE 'qa_admin'.TesecaseRecord SET `isDelete`= TRUE " \
+                             "WHERE `caseName` = '{}.json'".format(file_name)
+                cursor.execute(delete_sql)
+                connection.commit()
+                return jsonify({"msg": "Delete case succeed"}), 200
+        except pymysql.Error as e:
+            return jsonify({'msg': 'Delete case fail', 'error': str(e)}), 500
+        finally:
+            cursor.close()
+            connection.close()
+    else:
+        return jsonify({"error": "Case does not exist"}), 400
 
 
