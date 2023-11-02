@@ -111,10 +111,7 @@ def view_edp_case():
         test_cases = data["testCase"]
         response = []
         for test_case in test_cases:
-            result = {
-                "case_content": test_case
-            }
-            response.append(result)
+            response.append(test_case)
         return jsonify(response), 200
 
     else:
@@ -152,21 +149,20 @@ def edit_edp_case():
 
 
 @app_edp_test_case.route('/api/edp_test_case/delete', methods=["POST"])
-@jwt_required()
+# @jwt_required()
 def delete_case():
     connection = global_connection_pool.connection()
     cursor = connection.cursor()
     datas = request.get_data()
     data = json.loads(datas)
-    if "file_name" in data and data["file_name"] != "":
+    if "caseName" in data and data["caseName"] != "":
         file_name = data["caseName"]
         try:
             sql = "SELECT * FROM `qa_admin`.TesecaseRecord WHERE caseName = '{}'".format(file_name)
             cursor.execute(sql)
             result = cursor.fetchall()
             if result:
-                delete_sql = "UPDATE 'qa_admin'.TesecaseRecord SET `isDelete`= TRUE " \
-                             "WHERE `caseName` = '{}'".format(file_name)
+                delete_sql = "UPDATE 'qa_admin'.TesecaseRecord SET `isDelete` = TRUE WHERE `caseName` = '{}'".format(file_name)
                 cursor.execute(delete_sql)
                 connection.commit()
                 return jsonify({"msg": "Delete case succeed"}), 200
