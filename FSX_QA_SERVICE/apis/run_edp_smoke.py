@@ -1,20 +1,14 @@
-import configparser
 import json
-import os
-import platform
-import signal
 import tempfile
 import threading
 import time
 import random
 import traceback
-
-from flask import Flask, send_file, Response, jsonify, request, Blueprint, stream_with_context, make_response
+from flask import send_file, jsonify, request, Blueprint, make_response
 import subprocess
 from datetime import datetime, timedelta
 from flask_cors import CORS
 from configparser import ConfigParser
-from flasgger import Swagger, swag_from
 from flask_jwt_extended import jwt_required
 
 from FSX_QA_SERVICE.apis.Application import global_connection_pool
@@ -28,7 +22,6 @@ config_file = 'edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg'
 current_date = datetime.now().strftime("%Y-%m-%d")
 log_filename = f"edp_report_{current_date}.log"
 log_file_path = 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename
-
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -58,7 +51,6 @@ def insert_smoke_record(task_id, creator, status, create_time):
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
-    print(task_id, status, creator, create_time, )
     try:
         # 插入sql语句
 
@@ -118,102 +110,89 @@ def update_smoke_record(task_id, status, output):
         connection.close()
 
 
-def read_config(json_data):
-    # 读取并修改配置文件
-    config = configparser.ConfigParser(allow_no_value=True)
-    config.optionxform = str  # 保持键的大小写
-    config.read('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg')
-    Sender = json_data["sender"]
-    Target = json_data["target"]
-    Host = json_data["ip"]
-    Port = json_data["port"]
-    print(json_data)
-    print(Sender)
-    print(Target)
-    print(Host)
-    print(Port)
+# def read_config(json_data):
+#     # 读取并修改配置文件
+#     config = configparser.ConfigParser(allow_no_value=True)
+#     config.optionxform = str  # 保持键的大小写
+#     config.read('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg')
+#     Sender = json_data["sender"]
+#     Target = json_data["target"]
+#     Host = json_data["ip"]
+#     Port = json_data["port"]
+#     print(json_data)
+#     print(Sender)
+#     print(Target)
+#     print(Host)
+#     print(Port)
+#
+#     config.set('SESSION', 'SenderCompID', Sender)
+#     config.set('SESSION', 'TargetCompID', Target)
+#     config.set('SESSION', 'SocketConnectHost', Host)
+#     config.set('SESSION', 'SocketConnectPort', Port)
+#
+#     with open('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
+#         config.write(configfile)
 
-    config.set('SESSION', 'SenderCompID', Sender)
-    config.set('SESSION', 'TargetCompID', Target)
-    config.set('SESSION', 'SocketConnectHost', Host)
-    config.set('SESSION', 'SocketConnectPort', Port)
 
-    with open('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
-        config.write(configfile)
-
-def execute_task(command_args, task_id):
+def execute_task(shell_commands, task_id):
     try:
-        p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(2)
+        p = subprocess.Popen(shell_commands, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         p.wait()
         outputs = p.communicate()
-        stderr = outputs[1].decode("utf-8")
-        # 当进程为空时
-        if stderr == "":
+        stderr = outputs[1].decode('utf-8')
+
+        if stderr == "":  # 进程为空
             status = "error"
             output = "connect error, please check the config"
 
-        # 当进程错误时
-        elif "Error:" in stderr:
+        elif 'Error:' in stderr:  # 进程执行信息有错误
             status = "error"
-            output = stderr.split("Error:", 1)[-1].strip()
+            output = stderr.split('Error:', 1)[-1].strip()
         else:
             status = "completed"
             output = " "
+
+    # 进程出错被中断
     except Exception as e:
         print("Error executing subprocess:", e)
         output = e  # 使用异常信息作为错误信息
         status = "error"
 
-    print(task_id, status, output)
     # 更新数据库
     update_smoke_record(task_id, status, output)
-
 
 
 # 运行edp_smoke
 @app_run_edp_smoke.route('/api/edp_smoke_list/run_edp_smoke', methods=['POST'])
 # @jwt_required()
-def run_edp_smoke(script_path="/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_application.py"):
-    Data = request.get_data()
-    # Data = {
-    #     "source": "your_source",
-    #     "ip": "54.250.107.1",
-    #     "port": "5007",
-    #     "sender": "RSIT_EDP_7",
-    #     "target": "FSX_SIT_EDP",
-    #     "Account": "RSIT_EDP_ACCOUNT_7",
-    #     "Market": "EDP",
-    #     "ActionType": "NewAck",
-    #     "OrderQty": 100,
-    #     "OrdType": "1",
-    #     "Side": "2",
-    #     "Symbol": "5110",
-    #     "TimeInForce": "3",
-    #     "CrossingPriceType": "EDP",
-    #     "Rule80A": "P",
-    #     "CashMargin": "1",
-    #     "MarginTransactionType": "0",
-    #     "MinQty": 0,
-    #     "OrderClassification": "3",
-    #     "SelfTradePreventionId": "0 "
-    # }
-    if not Data or Data == b'':
+def run_edp_smoke():
+    script_path = "edp_fix_client/initiator/edp_smoke_test/edp_smoke_application.py"
+    data = request.get_data()
+    if not data:
         return jsonify({"error": "Invalid request data"}), 400
     # 解析为python字符串
-    datas = json.loads(Data)
+    datas = json.loads(data)
     task_id = get_task_id()
     creator = datas["source"]
     create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
-    read_config(datas)
     # 将Data数据转换为json格式
     json_data_with_quotes = json.dumps(datas)
-    run_all_shell = []
+    json_data_with_quotes = "'" + json_data_with_quotes + "'"
+    # 创建一个空数组用于存放shell命令
+    commands = []
     # 构建命令参数列表
-    command_args = ['python3', script_path, '--Data', json_data_with_quotes]
-    run_all_shell.append(command_args)
+    command_args = [
+        'python3' + " " + script_path + " " + "--data" + " " + json_data_with_quotes]
+    print(command_args)
+    for command in command_args:
+        shell = command + " &\n" + "sleep 1\n"
+        commands.append(shell)
 
-    thread = threading.Thread(target=execute_task, args=(command_args, task_id))
+    # 格式化数组中的shell命令
+    shell_commands = ''.join(commands)
+    print(shell_commands)
+
+    thread = threading.Thread(target=execute_task, args=(shell_commands, task_id))
     thread.start()
     status = "progressing"
 
@@ -313,7 +292,6 @@ def edp_smoke_list():
 def download_log():
     Data = request.get_data()
     Datas = json.loads(Data)
-
 
     if Data is None or "taskId" not in Datas:
         return 'Invalid data', 400

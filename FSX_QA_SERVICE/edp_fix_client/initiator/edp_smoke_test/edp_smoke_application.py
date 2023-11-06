@@ -14,6 +14,12 @@ import json
 
 __SOH__ = chr(1)
 
+# report
+current_date = datetime.now().strftime("%Y-%m-%d")
+log_filename = f"edp_report_{current_date}.log"
+setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename)
+logfix = logging.getLogger('logfix')
+
 
 class Application(fix.Application):
     orderID = 0
@@ -301,49 +307,48 @@ class Application(fix.Application):
         str1 = ''.join([str(i) for i in random.sample(range(0, 9), 4)])
         return str(t) + str1 + str(self.execID).zfill(6)
 
-    def insert_order_request(self, Data):
+    def insert_order_request(self, data):
         msg = fix.Message()
         header = msg.getHeader()
         header.setField(fix.MsgType(fix.MsgType_NewOrderSingle))
         header.setField(fix.MsgType("D"))
-        msg.setField(fix.Account(Data['Account']))
+        msg.setField(fix.Account(data.get('account')))
         msg.setField(fix.ClOrdID(self.getClOrdID()))
-        msg.setField(fix.OrderQty(Data["OrderQty"]))
-        msg.setField(fix.OrdType(Data["OrdType"]))
-        msg.setField(fix.Side(Data["Side"]))
-        msg.setField(fix.Symbol(Data["Symbol"]))
-        # ClientID = msg.getField(11)
+        msg.setField(fix.OrderQty(int(data.get("orderQty"))))
+        msg.setField(fix.OrdType(data.get("ordType")))
+        msg.setField(fix.Side(data.get("side")))
+        msg.setField(fix.Symbol(data.get("symbol")))
 
         # 判断订单类型
-        if Data["OrdType"] == "2":
-            msg.setField(fix.Price(Data["Price"]))
+        if data.get("price") == "2":
+            msg.setField(fix.Price(data.get("Price")))
 
-        if Data["TimeInForce"] != "":
-            msg.setField(fix.TimeInForce(Data["TimeInForce"]))
+        if data.get("timeInForce") != "":
+            msg.setField(fix.TimeInForce(data.get("timeInForce")))
 
-        if Data["Rule80A"] != "":
-            msg.setField(fix.Rule80A(Data["Rule80A"]))
+        if data.get("rule80A") != "":
+            msg.setField(fix.Rule80A(data.get("rule80A")))
 
-        if Data["CashMargin"] != "":
-            msg.setField(fix.CashMargin(Data["CashMargin"]))
+        if data.get("cashMargin") != "":
+            msg.setField(fix.CashMargin(data.get("cashMargin")))
 
         # 自定义Tag
-        if Data["CrossingPriceType"] != "":
-            msg.setField(8164, Data["CrossingPriceType"])
+        if data.get("crossingPriceType") != "":
+            msg.setField(8164, data.get("crossingPriceType"))
 
-        if Data["MarginTransactionType"] != "":
-            msg.setField(8214, Data["MarginTransactionType"])
+        if data.get("marginTransactionType") != "":
+            msg.setField(8214, data.get("marginTransactionType"))
 
         # EDP
 
-        if Data["MinQty"] != "":
-            msg.setField(fix.MinQty(Data["MinQty"]))
+        if data.get("minQty") != "":
+            msg.setField(fix.MinQty(int(data.get("minQty"))))
 
-        if Data["OrderClassification"] != "":
-            msg.setField(8060, Data["OrderClassification"])
+        if data.get("orderClassification") != "":
+            msg.setField(8060, data.get("orderClassification"))
 
-        if Data["SelfTradePreventionId"] != "":
-            msg.setField(8174, Data["SelfTradePreventionId"])
+        if data.get("selfTradePreventionId") != "":
+            msg.setField(8174, data.get("selfTradePreventionId"))
 
         # 获取TransactTime
         trstime = fix.TransactTime()
@@ -372,58 +377,52 @@ class Application(fix.Application):
         fix.Session.sendToTarget(msg, self.sessionID)
         return msg
 
-    # def read_config(self, Sender, Target, Host, Port):
-    #     # 读取并修改配置文件
-    #     config = configparser.ConfigParser(allow_no_value=True)
-    #     config.optionxform = str  # 保持键的大小写
-    #     config.read('/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg')
-    #     config.set('SESSION', 'SenderCompID', Sender)
-    #     config.set('SESSION', 'TargetCompID', Target)
-    #     config.set('SESSION', 'SocketConnectHost', Host)
-    #     config.set('SESSION', 'SocketConnectPort', Port)
-    #
-    #     with open('/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
-    #         config.write(configfile)
+    def read_config(self, sender, target, host, port):
+        # 读取并修改配置文件
+        config = configparser.ConfigParser(allow_no_value=True)
+        config.optionxform = str  # 保持键的大小写
+
+        print(sender, target, host, port)
+
+        config.read('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg')
+        config.set('SESSION', 'SenderCompID', sender)
+        config.set('SESSION', 'TargetCompID', target)
+        config.set('SESSION', 'SocketConnectHost', host)
+        config.set('SESSION', 'SocketConnectPort', port)
+
+        with open('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
+            config.write(configfile, space_around_delimiters=False)
 
 
 def main():
-
-    global logfix
-    global Data
+    global data
+    print(111)
     try:
         # 使用argparse的add_argument方法进行传参
         parser = argparse.ArgumentParser()  # 创建对象
-        parser.add_argument('--account', default='RSIT_EDP_ACCOUNT_1', help='choose account to use for test')
-        # parser.add_argument('--Sender', default='RSIT_EDP_1', help='choose Sender to use for test')
-        # parser.add_argument('--Target', default='FSX_SIT_EDP', help='choose Target to use for test')
-        # parser.add_argument('--Host', default='54.250.107.1', help='choose Host to use for test')
-        # parser.add_argument('--Port', default='5001', help='choose Port to use for test')
-        parser.add_argument('--Data', help='please enter send data')
+        parser.add_argument('--data', help='please enter send data')
 
         args = parser.parse_args()  # 解析参数
-        account = args.account
-        # Sender = args.Sender
-        # Target = args.Target
-        # Host = args.Host
-        # Port = args.Port
 
-        if args.Data:
-            Data = json.loads(args.Data)
+        if args.data:
+            data = json.loads(args.data)
         else:
-            Data = {}
+            data = {}
+        print(data)
+        account = data.get("account")
+        sender = data.get("sender")
+        target = data.get("target")
+        host = data.get("ip")
+        port = data.get("port")
 
-        # report
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        log_filename = f"edp_report_{current_date}.log"
-        setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename)
-        logfix = logging.getLogger('logfix')
+        print(args.data)
 
         cfg = Application()
-        # cfg.Sender = Sender
-        # cfg.Target = Target
-        # cfg.Host = Host
-        # cfg.Port = Port
-        # cfg.read_config(Sender, Target, Host, Port)
+        cfg.Sender = sender
+        cfg.Target = target
+        cfg.Host = host
+        cfg.Port = port
+        cfg.read_config(sender, target, host, port)
 
         settings = fix.SessionSettings("edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg")
         application = Application()
@@ -434,14 +433,11 @@ def main():
 
         initiator.start()
         time.sleep(3)
-        if Data["ActionType"] == "NewAck":
-            application.insert_order_request(Data)
-        elif Data["ActionType"] == "CancelAck":
-            application.order_cancel_request(Data)
-        sleep_duration = timedelta(1)
-        end_time = datetime.now() + sleep_duration
-        while datetime.now() < end_time:
-            time.sleep(1)
+        if data.get("actionType") == "NewAck":
+            application.insert_order_request(data)
+        elif data.get("actionType") == "CancelAck":
+            application.order_cancel_request(data)
+        time.sleep(10)
         initiator.stop()
 
     except (fix.ConfigError, fix.RuntimeError) as e:
@@ -450,5 +446,4 @@ def main():
 
 
 if __name__ == '__main__':
-    print("000")
     main()
