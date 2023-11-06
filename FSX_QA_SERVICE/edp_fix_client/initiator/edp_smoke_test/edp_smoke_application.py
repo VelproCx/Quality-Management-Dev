@@ -387,6 +387,7 @@ class Application(fix.Application):
 
 
 def main():
+
     global logfix
     global Data
     try:
@@ -411,7 +412,7 @@ def main():
         else:
             Data = {}
 
-        # report'
+        # report
         current_date = datetime.now().strftime("%Y-%m-%d")
         log_filename = f"edp_report_{current_date}.log"
         setup_logger('logfix', 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename)
@@ -432,7 +433,7 @@ def main():
         initiator = fix.SocketInitiator(application, store_factory, settings, log_factory)
 
         initiator.start()
-        time.sleep(2)
+        time.sleep(3)
         if Data["ActionType"] == "NewAck":
             application.insert_order_request(Data)
         elif Data["ActionType"] == "CancelAck":
@@ -449,4 +450,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print("000")
     main()

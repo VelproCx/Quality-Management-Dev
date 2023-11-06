@@ -26,12 +26,9 @@ config_file = 'edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg'
 
 # 获取当前日期
 current_date = datetime.now().strftime("%Y-%m-%d")
-
 log_filename = f"edp_report_{current_date}.log"
-
-
 log_file_path = 'edp_fix_client/initiator/edp_smoke_test/logs/' + log_filename
-print(log_file_path)
+
 
 
 class CustomJSONEncoder(json.JSONEncoder):
@@ -61,13 +58,12 @@ def insert_smoke_record(task_id, creator, status, create_time):
     connection = global_connection_pool.connection()
     # 创建游标
     cursor = connection.cursor()
-    print(task_id, status, creator, create_time)
+    print(task_id, status, creator, create_time, )
     try:
         # 插入sql语句
 
         sql = "INSERT INTO SmokeRecord (taskId, status, CreateUser, CreateTime, type) VALUES (%s, %s, %s, %s, %s)"
         values = (task_id, status, creator, create_time, 1)
-        print(sql)
 
         # 执行语句
         cursor.execute(sql, values)
@@ -89,7 +85,6 @@ def update_smoke_record(task_id, status, output):
     # 创建游标
     cursor = connection.cursor()
     log_file = None
-    excel_file = None  # 初始化 excel_file 变量
 
     # 检查描述字段的长度
     if len(output) > 255:
@@ -100,7 +95,7 @@ def update_smoke_record(task_id, status, output):
             # 二进制读取log文件
             with open(log_file_path, 'rb') as file:
                 log_file = file.read()
-
+                # print(log_file)
 
         except FileNotFoundError as e:
             print("file error:", e)
@@ -132,6 +127,11 @@ def read_config(json_data):
     Target = json_data["target"]
     Host = json_data["ip"]
     Port = json_data["port"]
+    print(json_data)
+    print(Sender)
+    print(Target)
+    print(Host)
+    print(Port)
 
     config.set('SESSION', 'SenderCompID', Sender)
     config.set('SESSION', 'TargetCompID', Target)
@@ -141,14 +141,13 @@ def read_config(json_data):
     with open('edp_fix_client/initiator/edp_smoke_test/edp_smoke_client.cfg', 'w') as configfile:
         config.write(configfile)
 
-
 def execute_task(command_args, task_id):
     try:
         p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(2)
         p.wait()
         outputs = p.communicate()
         stderr = outputs[1].decode("utf-8")
-
         # 当进程为空时
         if stderr == "":
             status = "error"
@@ -166,39 +165,16 @@ def execute_task(command_args, task_id):
         output = e  # 使用异常信息作为错误信息
         status = "error"
 
-    # print(task_id, status, output)
+    print(task_id, status, output)
     # 更新数据库
     update_smoke_record(task_id, status, output)
 
-    # creator = Data["source"]
-    # wait_timeout = 5  # 命令每周期等待时间
-    # cnt, maxcnt = 0, 2  # 等待次数
-    # retcode = None  # 命令执行的退出码
-    # stderr = ""  # 标准错误流内容
-    # output = None
-    # taskId = get_task_id()
-    # status = "progressing"
-    # create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
-    # read_config(Data)
-    # # 将Data数据转换为json格式
-    # json_data_with_quotes = json.dumps(Data)
-    #
-    # run_all_shell = []
-    # # 构建命令参数列表
-    # command_args = ['python3', script_path, '--Data', json_data_with_quotes]
-    # run_all_shell.append(command_args)
-    #
-    # try:
-    #     # 执行命令
-    #     p = subprocess.Popen(command_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    #     stdout, stderr = p.communicate()
-    #     print(stdout.decode())
 
 
 # 运行edp_smoke
 @app_run_edp_smoke.route('/api/edp_smoke_list/run_edp_smoke', methods=['POST'])
 # @jwt_required()
-def run_edp_smoke(script_path="edp_fix_client/initiator/edp_smoke_test/edp_smoke_application.py"):
+def run_edp_smoke(script_path="/Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_application.py"):
     Data = request.get_data()
     # Data = {
     #     "source": "your_source",
@@ -224,16 +200,14 @@ def run_edp_smoke(script_path="edp_fix_client/initiator/edp_smoke_test/edp_smoke
     # }
     if not Data or Data == b'':
         return jsonify({"error": "Invalid request data"}), 400
-    # 数据转换
-    data_str = json.dumps(Data)
-    datas = json.loads(data_str)
+    # 解析为python字符串
+    datas = json.loads(Data)
     task_id = get_task_id()
     creator = datas["source"]
     create_time = datetime.now().isoformat()  # 获取当前时间并转换为字符串
-    read_config(Data)
+    read_config(datas)
     # 将Data数据转换为json格式
-    json_data_with_quotes = json.dumps(Data)
-
+    json_data_with_quotes = json.dumps(datas)
     run_all_shell = []
     # 构建命令参数列表
     command_args = ['python3', script_path, '--Data', json_data_with_quotes]
@@ -241,7 +215,6 @@ def run_edp_smoke(script_path="edp_fix_client/initiator/edp_smoke_test/edp_smoke
 
     thread = threading.Thread(target=execute_task, args=(command_args, task_id))
     thread.start()
-
     status = "progressing"
 
     response = {
@@ -335,13 +308,18 @@ def edp_smoke_list():
         connection.close()
 
 
-
-
-@app_run_edp_smoke.route('/api/edp_smoke_list/download_edp_log/<task_id>', methods=['GET'])
+@app_run_edp_smoke.route('/api/edp_smoke_list/download_edp_log', methods=['POST'])
 # @jwt_required()
-def download_log(task_id):
-    if not task_id:
-        return 'task_id is missing', 400
+def download_log():
+    Data = request.get_data()
+    Datas = json.loads(Data)
+
+
+    if Data is None or "taskId" not in Datas:
+        return 'Invalid data', 400
+
+    task_id = Datas["taskId"]
+
     try:
         # 从数据库池获取数据库连接
         connection = global_connection_pool.connection()
@@ -349,13 +327,17 @@ def download_log(task_id):
         cursor = connection.cursor()
 
         # 查询指定任务的log_file
-        query = 'SELECT log_file FROM qa_admin.SmokeRecord WHERE taskId = %s'
-        cursor.execute(query, (task_id))
-        result = cursor.fetchall()
+        query = 'SELECT log_file,log_filename FROM qa_admin.SmokeRecord WHERE taskId = %s'
+        cursor.execute(query, (task_id,))
+        result = cursor.fetchone()
 
-        # 检查是否有task_id
         if result is None:
             return 'File net found', 404
+
+        if result['log_file'] is None or result['log_filename'] is None:
+            return 'log file content not found', 400
+
+        log_filename = result['log_filename']
         log_file_content = result['log_file']
 
         # 保存日志内容到临时文件
