@@ -19,7 +19,7 @@
 #' --account RSIT_EDP_ACCOUNT_5 --Sender RSIT_EDP_5 --Target FSX_SIT_EDP --Host 54.250.107.1 --Port 5005
 
 
-python3 edp_smoke_application.py --Data '{
+python3 /Users/tendy/Documents/FSX-DEV-QA/FSX_QA_SERVICE/edp_fix_client/initiator/edp_smoke_test/edp_smoke_application.py --Data '{
     "source": "your_source",
     "ip": "54.250.107.1",
     "pord": "5005",
