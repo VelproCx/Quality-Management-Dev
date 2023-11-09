@@ -1,9 +1,12 @@
+import io
 import json
 import tempfile
 import threading
 import time
 import random
 import traceback
+
+import openpyxl
 from flask import send_file, jsonify, request, Blueprint, make_response
 import subprocess
 from datetime import datetime, timedelta
@@ -353,16 +356,25 @@ def download_report_file():
         excel_file_content = result['excel_file']
 
         # 保存日志内容到临时文件
-        excel_temp_file = tempfile.NamedTemporaryFile(delete=False)
-        excel_temp_file.write(excel_file_content)
-        excel_temp_file.close()
+        # excel_temp_file = tempfile.NamedTemporaryFile(delete=False)
+        # excel_temp_file.write(excel_file_content)
+        # excel_temp_file.close()
+
+        # 将 Blob 文件内容转换为 Excel 文件
+        excel_file = io.BytesIO(excel_file_content)
+        workbook = openpyxl.load_workbook(excel_file)
 
         # 创建响应对象
-        response = make_response(
-            send_file(excel_temp_file.name, mimetype='text/plain', as_attachment=True, download_name='report.xlsx'))
+        response = make_response()
 
-        # 设置响应头，指定文件名
-        response.headers['Content-Disposition'] = f'attachment; filename={report_filename}'
+        # 将 Excel 文件保存到响应对象中
+        with io.BytesIO() as excel_output:
+            workbook.save(excel_output)
+            response.data = excel_output.getvalue()
+
+        # 设置响应头，指定文件类型和下载文件名
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = 'attachment; filename=your_file_name.xlsx'
 
         # 返回响应
         return response
