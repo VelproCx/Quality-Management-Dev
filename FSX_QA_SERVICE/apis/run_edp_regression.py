@@ -7,7 +7,6 @@ import random
 import traceback
 import zipfile
 
-import openpyxl
 from flask import send_file, jsonify, request, Blueprint, make_response
 import subprocess
 from datetime import datetime, timedelta
