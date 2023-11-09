@@ -352,29 +352,17 @@ def download_report_file():
         if result['report_filename'] is None or result['excel_file'] is None:
             return 'report file content not found', 404
 
-        report_filename = result['report_filename']
         excel_file_content = result['excel_file']
-
-        # 保存日志内容到临时文件
-        # excel_temp_file = tempfile.NamedTemporaryFile(delete=False)
-        # excel_temp_file.write(excel_file_content)
-        # excel_temp_file.close()
-
-        # 将 Blob 文件内容转换为 Excel 文件
-        excel_file = io.BytesIO(excel_file_content)
-        workbook = openpyxl.load_workbook(excel_file)
 
         # 创建响应对象
         response = make_response()
 
-        # 将 Excel 文件保存到响应对象中
-        with io.BytesIO() as excel_output:
-            workbook.save(excel_output)
-            response.data = excel_output.getvalue()
+        # 将文件内容设置到响应对象中
+        response.data = excel_file_content
 
         # 设置响应头，指定文件类型和下载文件名
         response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        response.headers['Content-Disposition'] = 'attachment; filename=your_file_name.xlsx'
+        response.headers['Content-Disposition'] = 'attachment; filename=your_file_name.bin'
 
         # 返回响应
         return response
