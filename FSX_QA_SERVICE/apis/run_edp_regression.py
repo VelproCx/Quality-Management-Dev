@@ -5,6 +5,7 @@ import threading
 import time
 import random
 import traceback
+import zipfile
 
 import openpyxl
 from flask import send_file, jsonify, request, Blueprint, make_response
@@ -334,47 +335,42 @@ def download_report_file():
     if data is None or "taskId" not in datas:
         return 'Invalid data', 400
 
-    task_id = datas["taskId"]
-    if data is None:
-        return 'Invalid file path', 400
+    taskid = datas["taskId"]
+
+    # 连接数据库
+    connection = global_connection_pool.connection()
+    cursor = connection.cursor()
+
     try:
-        # 连接数据库
-        connection = global_connection_pool.connection()
-        cursor = connection.cursor()
+        # 创建内存中的 Zip 文件
+        zip_output = io.BytesIO()
+        with zipfile.ZipFile(zip_output, 'w') as zip_file:
+            # 查询指定任务的 log_file
+            query = "SELECT excel_file,report_filename FROM qa_admin.RegressionRecord WHERE taskId = %s"
+            cursor.execute(query, (taskid,))
+            result = cursor.fetchone()
+            if result is None:
+                return 'File not found', 404
 
-        # 查询指定任务的 log_file
-        query = "SELECT excel_file,report_filename FROM qa_admin.RegressionRecord WHERE taskId = %s"
-        cursor.execute(query, (task_id,))
-        result = cursor.fetchone()
-        if result is None:
-            return 'File not found', 404
+            if result['report_filename'] is None or result['excel_file'] is None:
+                return 'report file content not found', 404
 
-        if result['report_filename'] is None or result['excel_file'] is None:
-            return 'report file content not found', 404
+            else:
+                file_content = result['excel_file']
+                file_name = result['report_filename']
 
-        report_filename = result['report_filename']
-        excel_file_content = result['excel_file']
-
-        # 保存日志内容到临时文件
-        # excel_temp_file = tempfile.NamedTemporaryFile(delete=False)
-        # excel_temp_file.write(excel_file_content)
-        # excel_temp_file.close()
-
-        # 将 Blob 文件内容转换为 Excel 文件
-        excel_file = io.BytesIO(excel_file_content)
-        workbook = openpyxl.load_workbook(excel_file)
+                # 将文件内容添加到 Zip 文件中
+                zip_file.writestr(file_name, file_content)
 
         # 创建响应对象
         response = make_response()
 
-        # 将 Excel 文件保存到响应对象中
-        with io.BytesIO() as excel_output:
-            workbook.save(excel_output)
-            response.data = excel_output.getvalue()
+        # 将 Zip 文件保存到响应对象中
+        response.data = zip_output.getvalue()
 
         # 设置响应头，指定文件类型和下载文件名
-        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        response.headers['Content-Disposition'] = 'attachment; filename=your_file_name.xlsx'
+        response.headers['Content-Type'] = 'application/zip'
+        response.headers['Content-Disposition'] = 'attachment; filename=files.zip'
 
         # 返回响应
         return response
